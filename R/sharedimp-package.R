@@ -17,4 +17,5 @@
 #' @keywords internal
 #' @importFrom stats predict sd cor setNames
 #' @importFrom rlang abort warn inform `%||%`
+#' @importFrom ranger ranger
 "_PACKAGE"

@@ -139,19 +139,19 @@ mse <- yardstick::new_numeric_metric(mse, direction = "minimize")
 evaluate_metric <- function(metric, truth, pred, levels) {
   if (metric$kind == "numeric") {
     df <- data.frame(truth = truth, estimate = pred)
-    res <- metric$fn(df, truth, estimate)
+    res <- rlang::inject(metric$fn(df, !!rlang::sym("truth"), !!rlang::sym("estimate")))
   } else if (metric$kind == "class") {
     cls <- factor(levels[max.col(pred, ties.method = "first")], levels = levels)
     df <- data.frame(truth = factor(truth, levels = levels), estimate = cls)
-    res <- metric$fn(df, truth, estimate)
+    res <- rlang::inject(metric$fn(df, !!rlang::sym("truth"), !!rlang::sym("estimate")))
   } else {
     cols <- paste0(".pred_", levels)
     df <- data.frame(truth = factor(truth, levels = levels), pred, check.names = FALSE)
     names(df) <- c("truth", cols)
     if (length(levels) == 2L) {
-      res <- rlang::inject(metric$fn(df, truth, !!rlang::sym(cols[1L])))
+      res <- rlang::inject(metric$fn(df, !!rlang::sym("truth"), !!rlang::sym(cols[1L])))
     } else {
-      res <- rlang::inject(metric$fn(df, truth, !!!rlang::syms(cols)))
+      res <- rlang::inject(metric$fn(df, !!rlang::sym("truth"), !!!rlang::syms(cols)))
     }
   }
   val <- res$.estimate

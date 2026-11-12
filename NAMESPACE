@@ -13,6 +13,7 @@ export(residualize_apply)
 export(residualize_fit)
 export(shared_importance)
 export(sharedimp_learner)
+importFrom(ranger,ranger)
 importFrom(rlang,
   `%||%`,
   abort,
