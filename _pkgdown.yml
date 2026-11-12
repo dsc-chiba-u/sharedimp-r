@@ -1,0 +1,20 @@
+url: https://dsc-chiba-u.github.io/sharedimp-r/
+template:
+  bootstrap: 5
+
+reference:
+- title: Main function
+  contents:
+  - shared_importance
+  - sharedimp_result
+- title: Adapters
+  contents:
+  - sharedimp_learner
+  - as_metric
+- title: Low-level residualization
+  contents:
+  - residualize_fit
+- title: Package
+  contents:
+  - sharedimp-package
+destination: pkgdown_site
