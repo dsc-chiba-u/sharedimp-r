@@ -1,0 +1,13 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rcheck/
+*.tar.gz
+inst/doc
+/doc/
+pkgdown_site/
+/Meta/
+docs/reference
+docs/articles
+docs/pkgdown.yml

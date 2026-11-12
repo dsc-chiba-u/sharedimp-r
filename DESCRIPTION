@@ -1,0 +1,47 @@
+Package: sharedimp
+Title: Shared Predictive Importance via Fold-Internal Residualization
+Version: 0.1.0
+Authors@R:
+    person(given = "Koki",
+           family = "Tsuyuzaki",
+           role = c("aut", "cre"),
+           email = "k.t.the-answer@hotmail.co.jp")
+Description: A resampling-based implementation of the linear-regression
+    variant of ultra-marginal feature importance (UMFI-LR; Janssen, Guan and
+    Robeva, 2023, <https://proceedings.mlr.press/v206/janssen23a.html>) for
+    modern machine-learning workflows. For each anchor feature, the other
+    predictors are residualized on the anchor using coefficients estimated
+    inside the training fold only, and the out-of-sample performance of a
+    model with the anchor plus residualized predictors is compared, fold by
+    fold, with a model using the residualized predictors alone. Importance is
+    positive when keeping the anchor predicts better; negative values are not
+    truncated. Works with 'parsnip' model specifications, 'rsample'
+    resamples and 'yardstick' metrics for regression, binary and multiclass
+    classification, with fixed hyperparameters and reproducible random state.
+License: MIT + file LICENSE
+URL: https://github.com/dsc-chiba-u/sharedimp-r
+BugReports: https://github.com/dsc-chiba-u/sharedimp-r/issues
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Depends:
+    R (>= 4.1)
+Imports:
+    parsnip (>= 1.1.0),
+    ranger,
+    rlang (>= 1.1.0),
+    rsample (>= 1.2.0),
+    stats,
+    tibble,
+    yardstick (>= 1.3.0)
+Suggests:
+    dplyr,
+    ggplot2,
+    glmnet,
+    knitr,
+    nnet,
+    rmarkdown,
+    testthat (>= 3.0.0),
+    withr
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.1.0
