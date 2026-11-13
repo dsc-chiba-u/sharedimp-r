@@ -1,7 +1,7 @@
 # sharedimp-r — work log and TODO
 
 Last updated: 2026-11-13 (final specification revision after the Python-side
-review; Python state `5277017`). This file records what has
+review; Python state `c082026`). This file records what has
 been done, what was verified and how, and what remains, across the three
 sibling repositories. The algorithm itself is specified in
 `docs/specification.md`; this file is about project state.
@@ -92,20 +92,22 @@ sibling repositories. The algorithm itself is specified in
 
 ## 3. TODO — Python side (`sharedimp-py`, for its maintainers; see `docs/python_changes.md`)
 
-State observed at commit `5277017`:
+State observed at commit `c082026`:
 
 - [x] Direction removed; `p = 1` with null model (`febd7ea`); default metrics
       and `on_error` (`399bb20`); spec pointer (`dd0bef0`); `common_scorer()`;
       parity fixture test (`d612a06`); Docker workflow with the same tag
       policy (`692c3fe`).
-- [ ] Regenerate `tests/fixtures/cross_language/r_reference.json` from the
-      current R commit (old reference came from `6c5631d`), adapt the
-      generator (`score_*`, `collinear`, no `drop_constant`), remove the
-      compensating conversions in `tests/test_cross_language.py`, extend to
-      the default metric and a failing split; for the collinear design use an
-      OLS learner with an explicit rank decision (spec §8.1 / §15.4).
-- [ ] Mark the R spec revision of this commit as the one checked in the
-      Python notes §1.
+- [x] R reference regenerated from R `92f9ecb` and compared directly
+      (`2a34a02`); non-finite predictions recorded as failures (`98de522`);
+      rank-deficient designs tested with the test-only `AliasingOLS`.
+- [ ] Whenever the R package changes numbers or result tables: regenerate
+      `tests/fixtures/cross_language/r_reference.json` (Python `CLAUDE.md`,
+      "Regenerating the R reference"). Its generator relies on
+      `residualize_fit()$collinear` and the `sharedimp_constant_anchor`
+      warning class.
+- [ ] Optional: an R test reading the same `inputs.json` to close the loop in
+      the other direction (none exists yet).
 
 ## 4. TODO — `sharedimp-experiments` (not started; do not touch until asked)
 
@@ -139,7 +141,7 @@ State observed at commit `5277017`:
 | 2026-11-13 | Direction diagnostic out of v0.1 (R Pearson-on-difference vs Python Spearman-on-prediction differ). |
 | 2026-11-13 | Default metrics MSE / multinomial log loss; `on_error` default `"warn"`; both normative. |
 | 2026-11-13 | Docker: `rocker/r-ver` base (no Bioconductor); `latest` only from `main`; semver tags from `vX.Y.Z`; manual runs publish only from `main` or a tag. |
-| 2026-11-13 | Rank-deficient OLS designs: no identity claim for arbitrary learners; parity tests use an OLS learner with an explicit rank decision (`docs/parity/rank_deficiency.md`). |
+| 2026-11-13 | Rank-deficient OLS designs: no identity claim for arbitrary learners; coefficients are not unique and predictions off the training dependency depend on the solver; parity tests reproduce `lm.fit`'s column-order aliasing (Python test-only `AliasingOLS`), not merely a rank decision (`docs/parity/rank_deficiency.md`). |
 
 ## 7. Environment notes
 

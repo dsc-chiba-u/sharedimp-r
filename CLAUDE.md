@@ -78,7 +78,8 @@ unexported; do not expose it without an agreed definition.
   read it first when resuming, update it at the end of a session.
 - `docs/specification.md` — common spec. `docs/python_changes.md` — Python
   status per spec item. `docs/parity/rank_deficiency.md` — why rank-deficient
-  OLS designs need a learner with an explicit rank decision in parity tests. `docs/parity/` — cross-language verification
+  OLS designs need a learner that reproduces `lm.fit`'s aliasing in parity
+  tests (with its later correction). `docs/parity/` — cross-language verification
   record. `docs/umfi_comparison.md` — comparison with the reference
   implementation.
 
@@ -146,8 +147,11 @@ without seeing the workflow succeed.
   (1 − SS_res/SS_tot), `rsq` means squared Pearson correlation; keep them
   distinct.
 - Do not claim that arbitrary learners give identical predictions across
-  languages on rank-deficient designs; parity tests on such designs use an
-  OLS learner with an explicit rank decision (`lm.fit` in R).
+  languages on rank-deficient designs: OLS coefficients are not unique there,
+  and predictions on assessment rows that leave the training dependency
+  depend on the solver's convention. `lm.fit` aliases in column order; parity
+  tests on such designs must reproduce that convention (Python: test-only
+  `AliasingOLS`), not merely recognise the rank deficiency.
 - Learner failures on a split produce `NA` for that split plus a warning, not an
   abort (unless `on_error = "error"`).
 - Dependencies: Imports are parsnip, rsample, yardstick, ranger, rlang, tibble,

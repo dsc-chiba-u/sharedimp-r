@@ -1,6 +1,6 @@
 # Status of the Python package against the common specification
 
-Reference state: `sharedimp-py` commit `5277017` (2026-11-13; read only,
+Reference state: `sharedimp-py` commit `c082026` (2026-11-13; read only,
 nothing there was modified from this repository). The canonical list is
 Section 16 of `docs/specification.md`; this file repeats it with the
 implementing Python commits and what remains.
@@ -16,14 +16,12 @@ implementing Python commits and what remains.
 | 5 | Python `docs/specification.md` as a pointer to the R spec plus Python notes and recorded deviations | `dd0bef0` | done |
 | 6 | Scorer ↔ common-name mapping documented; `common_scorer()` for `mse, rmse, mae, r2, rsq, log_loss, accuracy, roc_auc` | `1bb2ce8`, `399bb20` | done |
 | 7 | Parity fixture of spec §15.1 (and collinear variant) at `1e-8`, also with the default metric | `d612a06` | done |
-| 7b | Regenerate `tests/fixtures/cross_language/r_reference.json` from the current R commit (generator adapted to `score_*` columns, `collinear` flags, no `drop_constant`), remove the compensating conversions in `tests/test_cross_language.py`, extend to the default metric and to a failing split with `on_error="warn"`; use an OLS learner with an explicit rank decision for the collinear design (spec §8.1, §15.4) | — | **open** (deferred by the Python side until the R spec revision was final; it is final as of this commit) |
+| 7b | Regenerate `r_reference.json` from the current R commit, compare directly, cover the default metric and failing splits, use a learner reproducing R's aliasing for rank-deficient designs (test-only `AliasingOLS`) | `2a34a02` | done (reference from R `92f9ecb`; recorded in `meta.sharedimp_r_commit`) |
+| 9 | Non-finite predictions recorded as a learner failure, as in R | `98de522` | done (former deviation removed) |
 | 8 | Docker policy (spec §17): `latest` + short SHA on `main`, semver on `vX.Y.Z`, no push on PRs, manual runs publish only from `main` or a tag | `692c3fe` | done |
 
-## Recorded deviations (Python notes §4.3–4.4; no action required)
+## Recorded deviations (Python notes §4.4; no action required)
 
-- Non-finite predictions are not inspected in Python (scorers receive the
-  fitted model); they surface as a scorer exception (failure) or a non-finite
-  score (excluded, empty `error`). Summary numbers agree with R.
 - Fit-time `sample_weight` (`fit_params`) exists in Python only; metrics are
   unweighted in both.
 - Overlapping training/assessment rows are accepted in Python (in-sample
@@ -46,13 +44,30 @@ deficiency in the downstream OLS learner (§8.1, new §15.4,
 No implementation change was requested of R and none was made, apart from the
 workflow condition.
 
+Fourth revision of `r_side_changes.md` (against R `92f9ecb`): two text
+corrections on rank-deficient OLS, applied to spec §8.1 and §15.4 and to
+`docs/parity/rank_deficiency.md`: (1) solvers that recognise the rank
+deficiency agree only where the assessment rows satisfy the training
+dependency; in the constant-anchor case `lm.fit`'s column-order aliasing and
+a minimum-norm solution predict differently (Python measurement: 1.5e-2);
+(2) `numpy.linalg.lstsq` / SVD rank decisions are therefore not a counterpart
+of `lm.fit`; parity tests use the test-only `AliasingOLS`. Again no
+implementation change.
+
 ## Verified numerically
 
 - Parity fixture (spec §15.1): R and Python agree to ≤ 6.8e-14 on every
   column of both tables; collinear variant to 2.9e-14 in the current
   environments (scikit-learn 1.9.1 / NumPy 2.4.6).
 - All common metrics: yardstick 1.4.0 vs scikit-learn 1.9.1 to ≤ 3e-15.
-- Rank deficiency (spec §15.4, `docs/parity/rank_deficiency.md`): every solver
-  that recognises the machine-epsilon singular value matches R to ≤ 1e-13;
-  a solver that does not changes per-split MSE by 0.02–0.4. Residualization is
-  not involved.
+- Rank deficiency (spec §15.4, `docs/parity/rank_deficiency.md`): on the
+  collinear variant, solvers that recognised the machine-epsilon singular value
+  matched R to ≤ 1e-13 in the R-side run and a solver that did not changed
+  per-split MSE by 0.02–0.4. The Python side additionally measured (both
+  stacks) one wrong cell for `scipy.linalg.lstsq` on that variant and a 1.5e-2
+  difference for `numpy.linalg.lstsq` on a constant-anchor design, and ≤ 7.1e-14
+  agreement with its `AliasingOLS` on all rank-deficient designs.
+  Residualization is not involved.
+- Python commit `2a34a02` regenerated its R reference by running R at `92f9ecb`
+  and compares directly: residualization, representations, predictions, both
+  tables, default metric, `p = 1`, learner failures all agree (Python notes §6).

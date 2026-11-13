@@ -1,7 +1,8 @@
 # sharedimp — common algorithm specification (R / Python)
 
 Status: **v0.1, reconciled 2026-11-13; final revision after the Python-side
-review (`sharedimp-py/docs/r_side_changes.md`, third revision).** This
+review (`sharedimp-py/docs/r_side_changes.md`, third and fourth revisions).**
+This
 document is the single source of truth for the R package `sharedimp` (this
 repository) and the Python package `sharedimp` (`../sharedimp-py`, whose
 `docs/specification.md` is a pointer to this file plus Python-specific notes
@@ -148,13 +149,10 @@ where `prediction` is a numeric vector (regression) or an `n × K` matrix of
 class probabilities with columns in the level order of `y` (classification).
 Predicted class labels are **always** derived as the argmax of the probability
 matrix (ties → first level); the learner's own class prediction, if any, is
-ignored. Non-finite predictions are a learner failure in R
-(`check_prediction()`); Python does not inspect predictions (scikit-learn
-scorers receive the fitted model), so a non-finite prediction surfaces either
-as an exception from the scorer (recorded as a failure) or as a non-finite
-score that is excluded from the aggregation with an empty `error` — the
-summary numbers agree, only the `error` text can differ (recorded deviation
-in the Python notes §4.3). If a level of `y` is absent from a training set
+ignored. Non-finite predictions on the assessment rows are a learner failure
+in both languages (R: `check_prediction()`; Python since commit `98de522`,
+which inspects the assessment predictions before scoring). If a level of `y`
+is absent from a training set
 (but at least two levels are present), the learner is fitted on the levels
 present and the missing level receives probability 0.
 
@@ -168,27 +166,53 @@ Hyperparameters are fixed: no tuning is performed inside `shared_importance()`.
 | binary | unpenalized logistic regression (R: `stats::glm.fit()` binomial, event = first level; Python: `LogisticRegression(penalty=None)`) |
 | multiclass | unpenalized multinomial logistic regression (R: `nnet::multinom(maxit = 500)`; Python: `LogisticRegression(penalty=None)` multinomial) |
 
-**Rank deficiency.** R's `lm.fit` detects rank deficiency by pivoted QR with
-relative tolerance `1e-7` and the built-in learner sets aliased coefficients
-to zero, so predictions stay finite. A design can be rank-deficient even
-though rule D3 did not fire: D3 removes collinearity *with the anchor* only,
-and two other features that are collinear *with each other* (e.g. a feature
-and its affine copy, when neither is the anchor) stay collinear after
-residualization. Fitted values are a projection onto the column space, so
-every least-squares solver that **recognises** the deficiency gives the same
-predictions whatever its coefficient convention (R aliases a column;
-NumPy/SciPy return the minimum-norm solution). A solver that does **not**
-recognise a singular value at machine epsilon inverts it and the predictions
-change by amounts of order 0.1 (Section 15.4). Whether such a singular value
-is recognised depends on the library and its version; the specification
-therefore makes **no claim that arbitrary learners give identical predictions
-on rank-deficient designs**. Cross-language parity tests on rank-deficient
-designs must use an OLS learner with an explicit rank decision: R
-`lm.fit`; Python a least-squares solve with an explicit relative tolerance
-(e.g. `numpy.linalg.lstsq(rcond = 1e-7)` or an SVD minimum-norm fit truncating
-singular values below `1e-7` of the largest), not `LinearRegression` with
-library defaults. Non-convergence or separation is a learner failure only if
-it produces non-finite predictions.
+**Rank deficiency.** A Full or Reduced design can be rank-deficient even
+though rule D3 did not fire: D3 removes collinearity *with the anchor* only.
+Two other features that are collinear *with each other* (a feature and its
+affine copy, when neither is the anchor) stay collinear after residualization,
+and an anchor that is constant on the training rows (rule D1) is collinear
+with the intercept in the Full design while it may vary on the assessment
+rows. In such a design the OLS **coefficients are not unique**: every
+least-squares solution has the same fitted values on the training rows, but
+the solutions differ in how they distribute weight over the dependent
+columns.
+
+- Predictions on **assessment rows that satisfy the same linear dependency**
+  as the training rows (two features collinear everywhere) are the same for
+  every solution, so any solver that recognises the deficiency agrees.
+- Predictions on **assessment rows that leave the dependency** (the
+  constant-anchor case: the anchor varies on the assessment rows) depend on
+  which solution the solver returns. R's `lm.fit` resolves this by **aliasing
+  in column order**: pivoted QR (LINPACK `dqrdc2`, relative tolerance `1e-7`)
+  takes the columns of `[1, X]` in order and gives a column that is
+  numerically dependent on the columns accepted before it the coefficient
+  `NA`, which the built-in learner sets to 0 — the anchor column is ignored.
+  A minimum-norm solution (NumPy/SciPy `lstsq`, an SVD solve) spreads the
+  weight over the intercept and the anchor column and therefore reacts to the
+  anchor's assessment values. Both are valid least-squares solutions; their
+  predictions differ (the Python side measured 1.5e-2 in the Full score of
+  that cell; Section 15.4). Recognising the rank deficiency, by whatever
+  tolerance, is therefore **not sufficient** to reproduce `lm.fit`.
+- A solver that does **not** recognise a singular value at machine epsilon
+  inverts it and amplifies round-off into the predictions (Section 15.4).
+  Whether library defaults recognise it depends on the routine and version.
+
+Consequences. The specification makes **no claim that arbitrary learners give
+identical predictions across languages on rank-deficient designs**; the
+packages pass the representations to the learner as given and never
+substitute a solver. This is a property of the downstream learner, not a
+disagreement in the UMFI-LR residualization, which is identical in both
+languages on every design examined. Cross-language parity tests on
+rank-deficient designs must use an OLS learner that **reproduces R's aliasing
+convention**: in R `lm.fit` (the built-in `"linear"` learner); in Python the
+test-only `AliasingOLS` of `tests/test_cross_language.py` (columns of
+`[1, X]` in order, a column whose component orthogonal to the accepted columns
+is at most `1e-7` of its norm gets coefficient 0, the rest fitted by least
+squares). `LinearRegression`, `numpy.linalg.lstsq` or an SVD minimum-norm fit
+are **not** counterparts of `lm.fit` on every rank-deficient design and must
+not be used there; the full-rank fixture of Section 15.1 may use
+`LinearRegression`. Non-convergence or separation is a learner failure only
+if it produces non-finite predictions.
 
 ### 8.2 Built-in learner `"rand_forest"` (R default)
 
@@ -473,8 +497,8 @@ languages) also agreed to 2.9e-14, with `x1_dup` receiving the same importance
 as `x1` — **in the current environments**. For the anchors `x2` and `x3` this
 variant is rank-deficient downstream (`r(x1)` and `r(x1_dup)` are collinear),
 and the Python side observed 41.79 instead of 45.55 for `x3` with scikit-learn
-1.3.2 / NumPy 1.23; Section 15.4 explains why and states the rule for such
-tests.
+1.3.2 / NumPy 1.23; Section 15.4 explains why, and Section 8.1 states the rule
+for such tests.
 
 ### 15.2 Metric definitions
 
@@ -513,29 +537,50 @@ package.
 
 ### 15.4 Rank deficiency in the downstream OLS learner
 
-Record: `docs/parity/rank_deficiency.md` (scripts and raw output alongside).
-On the collinear variant of Section 15.1, for anchors `x2` and `x3`, the
+Two records: `docs/parity/rank_deficiency.md` (R side; scripts and raw output
+alongside) and `sharedimp-py/docs/rank_deficiency.md` (Python side; four
+designs, two dependency stacks, R reference regenerated from R commit
+`92f9ecb`). The residualization is identical in R and Python on every design
+examined (representations agree to about 1e-15); what differs is the
+least-squares solver.
+
+R-side record (collinear variant of Section 15.1, anchors `x2` and `x3`): the
 residualized `x1` and `x1_dup` differ by round-off only (≤ 7.1e-15) and the
-Full design has a singular value ratio of 2e-17 … 1.6e-16 — at machine
-epsilon (2.2e-16). The residualization is identical in R and Python; the
-question is purely how the least-squares solver treats that singular value:
+Full design has a singular value ratio of 2e-17 … 1.6e-16, at machine epsilon
+(2.2e-16). Here the assessment rows satisfy the same dependency as the
+training rows, so
 
-- recognised as zero (R `lm.fit`, NumPy `lstsq` with its default or with
-  `rcond = 1e-7`, SciPy `lstsq` in scikit-learn 1.9.1, SVD minimum-norm solve):
-  all predictions agree with R to ≤ 1e-13;
-- not recognised (forced in the record with `rcond = 1e-20`, or an untruncated
-  SVD solve in R): coefficients of order 1e14 and per-split test MSE changes
-  of 0.02–0.4, the behaviour the older scikit-learn / NumPy stack showed.
+- every solver that recognised the singular value as zero (R `lm.fit`, NumPy
+  `lstsq` with its default or `rcond = 1e-7`, scikit-learn 1.9.1
+  `LinearRegression`, an SVD minimum-norm solve) agreed with R to ≤ 1e-13 in
+  that environment;
+- a solver that did not (forced with `rcond = 1e-20`; an untruncated SVD solve
+  in R) gave coefficients of order 1e14 and per-split test MSE changes of
+  0.02–0.4, the behaviour the older scikit-learn / NumPy stack had shown.
 
-Consequences, now part of Section 8.1: no identity claim for arbitrary
-learners on rank-deficient designs; parity tests on such designs use an OLS
-learner with an explicit rank decision. The full-rank fixture of Section 15.1
-is unaffected.
+Python-side record (not re-run from R): on both stacks `scipy.linalg.lstsq`
+with its default cut-off was wrong in one cell of that same collinear variant,
+so "recognised in one environment" does not generalise; and on a design with an
+**anchor constant on one training set** (`X_constant`), `numpy.linalg.lstsq`
+(`rcond = None` or `1e-7`) and `scipy.linalg.lstsq` differed from R by 1.5e-2
+in the Full score of that cell although they recognised the deficiency,
+because the assessment rows leave the training dependency and the minimum-norm
+solution gives the anchor weight that `lm.fit`'s aliasing does not. The
+test-only `AliasingOLS`, which reproduces `lm.fit`'s column-order aliasing,
+agreed with R to ≤ 7.1e-14 on all rank-deficient designs on both stacks.
+
+Consequences (Section 8.1): OLS coefficients are not unique on a
+rank-deficient training design; predictions on assessment rows that leave the
+dependency depend on the solver's convention; recognising the deficiency is
+necessary but not sufficient; parity tests reproduce R's aliasing convention
+rather than use a generic least-squares routine; and none of this is a
+disagreement in the UMFI-LR residualization. The full-rank fixture of
+Section 15.1 is unaffected.
 
 ## 16. Required changes on the Python side
 
 Listed for the maintainers of `sharedimp-py`; nothing in that repository was
-modified from here. Status: as of Python commit `5277017` (2026-11-13). The
+modified from here. Status: as of Python commit `c082026` (2026-11-13). The
 implementing commits are named per item.
 
 1. **Direction diagnostic.** Remove the `direction` argument of
@@ -574,16 +619,17 @@ implementing commits are named per item.
    `rsq` and an argmax-based `accuracy`).*
 7. **Parity test.** Add the fixture of Section 15.1 (including the collinear
    variant) as a test with tolerance `1e-8` on every column of both tables.
-   *Status: done (`test_cross_language.py`), also with the default metric.
-   Still open (deferred by the Python side until this revision is declared
-   final, which it now is): regenerate the second reference set
-   `tests/fixtures/cross_language/r_reference.json` from the current R commit
-   (its generator must be adapted to `score_*` columns, `collinear` flags and
-   the removed `drop_constant` argument), remove the compensating conversions
-   in `tests/test_cross_language.py`, and extend the comparison to the default
-   metric and to a failing split with `on_error = "warn"` in both languages.
-   For the collinear design use an OLS learner with an explicit rank decision
-   (Section 8.1).*
+   *Status: done (`d612a06`; `2a34a02` regenerated
+   `tests/fixtures/cross_language/r_reference.json` by running R at commit
+   `92f9ecb`, compares the R output directly without conversions, and covers
+   the default metric, failing splits with `on_error = "warn"`, `p = 1` and
+   the rank-deficient designs with the test-only `AliasingOLS` of
+   Section 8.1). The reference records the R commit it came from
+   (`meta.sharedimp_r_commit`); it must be regenerated whenever the R package
+   changes numbers or result tables. Its generator relies on two R details
+   not otherwise specified: `residualize_fit()$collinear` is a logical vector
+   over the non-anchor features, and a constant anchor is signalled by a
+   warning of class `sharedimp_constant_anchor`.*
 
 Already consistent with this specification (no change needed): fold-internal
 OLS residualization with the exact-collinearity rule (`tol = 1e-10`), Full
@@ -593,10 +639,11 @@ sample sd over splits, the common column names of Section 11, split-major row
 order of the per-split table, seeding policy, `x0..` default names, Docker
 tag policy (Section 17).
 
-Recorded deviations on the Python side (its notes §4.3–4.4): non-finite
-predictions are not inspected (see Section 8); fit-time `sample_weight` is
-supported in Python only; overlapping training/assessment rows are accepted in
-Python (for in-sample closed-form tests) and rejected in R.
+Recorded deviations on the Python side (its notes §4.4): fit-time
+`sample_weight` is supported in Python only; overlapping training/assessment
+rows are accepted in Python (for in-sample closed-form tests) and rejected in
+R. The earlier deviation on non-finite predictions was removed by Python
+commit `98de522` (Section 8).
 
 ## 17. Distribution: Docker images
 
