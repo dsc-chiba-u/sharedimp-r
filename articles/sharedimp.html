@@ -126,17 +126,17 @@ mean squared error:</p>
 <span><span class="co">#&gt; &lt;sharedimp_result&gt;</span></span>
 <span><span class="co">#&gt;   task:       regression</span></span>
 <span><span class="co">#&gt;   learner:    linear</span></span>
-<span><span class="co">#&gt;   metric:     mse (minimize); importance = -(full - reduced)</span></span>
+<span><span class="co">#&gt;   metric:     mse (minimize); score = -mse, importance = score_full - score_reduced</span></span>
 <span><span class="co">#&gt;   resampling: 5-fold cross-validation (1 repeat)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 5 × 4</span></span></span>
-<span><span class="co">#&gt;   feature importance     sd n_folds</span></span>
-<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> x1          9.81   1.41         5</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> x2          6.67   0.572        5</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> x3          1.38   0.352        5</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> x4          0.074<span style="text-decoration: underline;">2</span> 0.079<span style="text-decoration: underline;">3</span>       5</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> x5          9.58   1.38         5</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 5 × 6</span></span></span>
+<span><span class="co">#&gt;   feature importance importance_std score_full score_reduced n_splits</span></span>
+<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>          <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> x1          9.81           1.41       -<span style="color: #BB0000;">0.993</span>        -<span style="color: #BB0000;">10.8</span>         5</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> x2          6.67           0.572      -<span style="color: #BB0000;">0.993</span>         -<span style="color: #BB0000;">7.66</span>        5</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> x3          1.38           0.352      -<span style="color: #BB0000;">0.993</span>         -<span style="color: #BB0000;">2.37</span>        5</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> x4          0.074<span style="text-decoration: underline;">2</span>         0.079<span style="text-decoration: underline;">3</span>     -<span style="color: #BB0000;">0.993</span>         -<span style="color: #BB0000;">1.07</span>        5</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> x5          9.58           1.38       -<span style="color: #BB0000;">0.993</span>        -<span style="color: #BB0000;">10.6</span>         5</span></span></code></pre></div>
 <p>Importance is <code>-(MSE_full - MSE_reduced)</code>, i.e. the
 increase in MSE caused by dropping the anchor while keeping the
 residualized others. For an independent linear-Gaussian design it is
@@ -152,20 +152,21 @@ duplication-symmetry property of UMFI.</p>
 <p>The per-fold paired metrics are always kept:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/sharedimp_result.html">fold_results</a></span><span class="op">(</span><span class="va">res</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 25 × 7</span></span></span>
-<span><span class="co">#&gt;    feature id    id2   metric_full metric_reduced importance error</span></span>
-<span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>          <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> x1      Fold1 <span style="color: #BB0000;">NA</span>          1.29           10.1        8.82 <span style="color: #BB0000;">NA</span>   </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> x1      Fold2 <span style="color: #BB0000;">NA</span>          1.04           12.2       11.2  <span style="color: #BB0000;">NA</span>   </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> x1      Fold3 <span style="color: #BB0000;">NA</span>          0.708          10.0        9.32 <span style="color: #BB0000;">NA</span>   </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> x1      Fold4 <span style="color: #BB0000;">NA</span>          1.03            9.35       8.32 <span style="color: #BB0000;">NA</span>   </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> x1      Fold5 <span style="color: #BB0000;">NA</span>          0.904          12.3       11.4  <span style="color: #BB0000;">NA</span>   </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> x2      Fold1 <span style="color: #BB0000;">NA</span>          1.29            8.36       7.08 <span style="color: #BB0000;">NA</span>   </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> x2      Fold2 <span style="color: #BB0000;">NA</span>          1.04            7.34       6.31 <span style="color: #BB0000;">NA</span>   </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> x2      Fold3 <span style="color: #BB0000;">NA</span>          0.708           6.90       6.20 <span style="color: #BB0000;">NA</span>   </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> x2      Fold4 <span style="color: #BB0000;">NA</span>          1.03            8.50       7.48 <span style="color: #BB0000;">NA</span>   </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> x2      Fold5 <span style="color: #BB0000;">NA</span>          0.904           7.20       6.30 <span style="color: #BB0000;">NA</span>   </span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># ℹ 15 more rows</span></span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 25 × 10</span></span></span>
+<span><span class="co">#&gt;    feature split n_train n_test score_full score_reduced importance id    id2  </span></span>
+<span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> x1          1     240     60      -<span style="color: #BB0000;">1.29</span>        -<span style="color: #BB0000;">10.1</span>      8.82   Fold1 <span style="color: #BB0000;">NA</span>   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> x2          1     240     60      -<span style="color: #BB0000;">1.29</span>         -<span style="color: #BB0000;">8.36</span>     7.08   Fold1 <span style="color: #BB0000;">NA</span>   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> x3          1     240     60      -<span style="color: #BB0000;">1.29</span>         -<span style="color: #BB0000;">2.88</span>     1.59   Fold1 <span style="color: #BB0000;">NA</span>   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> x4          1     240     60      -<span style="color: #BB0000;">1.29</span>         -<span style="color: #BB0000;">1.48</span>     0.190  Fold1 <span style="color: #BB0000;">NA</span>   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> x5          1     240     60      -<span style="color: #BB0000;">1.29</span>        -<span style="color: #BB0000;">10.2</span>      8.96   Fold1 <span style="color: #BB0000;">NA</span>   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> x1          2     240     60      -<span style="color: #BB0000;">1.04</span>        -<span style="color: #BB0000;">12.2</span>     11.2    Fold2 <span style="color: #BB0000;">NA</span>   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> x2          2     240     60      -<span style="color: #BB0000;">1.04</span>         -<span style="color: #BB0000;">7.34</span>     6.31   Fold2 <span style="color: #BB0000;">NA</span>   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> x3          2     240     60      -<span style="color: #BB0000;">1.04</span>         -<span style="color: #BB0000;">2.08</span>     1.04   Fold2 <span style="color: #BB0000;">NA</span>   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> x4          2     240     60      -<span style="color: #BB0000;">1.04</span>         -<span style="color: #BB0000;">1.02</span>    -<span style="color: #BB0000;">0.021</span><span style="color: #BB0000; text-decoration: underline;">1</span> Fold2 <span style="color: #BB0000;">NA</span>   </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> x5          2     240     60      -<span style="color: #BB0000;">1.04</span>        -<span style="color: #BB0000;">11.6</span>     10.5    Fold2 <span style="color: #BB0000;">NA</span>   </span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># ℹ 15 more rows</span></span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># ℹ 1 more variable: error &lt;chr&gt;</span></span></span></code></pre></div>
 <p>Negative fold values for <code>x4</code> are expected and are
 reported as they are.</p>
 </div>
@@ -180,30 +181,35 @@ pair of <code>fit</code>/<code>predict</code> functions wrapped with
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">res_rf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/shared_importance.html">shared_importance</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, v <span class="op">=</span> <span class="fl">5</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="va">res_rf</span><span class="op">$</span><span class="va">importance</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 5 × 4</span></span></span>
-<span><span class="co">#&gt;   feature importance     sd n_folds</span></span>
-<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> x1           9.23  1.95         5</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> x2           6.37  0.823        5</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> x3           1.01  0.345        5</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> x4          -<span style="color: #BB0000;">0.124</span> 0.087<span style="text-decoration: underline;">2</span>       5</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> x5           9.05  1.81         5</span></span></code></pre></div>
-<p>Metrics come from <code>yardstick</code>. The direction attribute of
-the metric decides the sign convention, so a metric to maximize
-(<code>"rsq"</code>, <code>"accuracy"</code>, <code>"roc_auc"</code>)
-and a metric to minimize (<code>"mse"</code>, <code>"rmse"</code>,
-<code>"mae"</code>, <code>"mn_log_loss"</code>) both yield positive
-importance when the anchor helps.</p>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 5 × 6</span></span></span>
+<span><span class="co">#&gt;   feature importance importance_std score_full score_reduced n_splits</span></span>
+<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>          <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> x1           9.36           2.03       -<span style="color: #BB0000;">2.63</span>        -<span style="color: #BB0000;">12.0</span>         5</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> x2           6.38           0.881      -<span style="color: #BB0000;">2.26</span>         -<span style="color: #BB0000;">8.65</span>        5</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> x3           1.02           0.380      -<span style="color: #BB0000;">2.19</span>         -<span style="color: #BB0000;">3.21</span>        5</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> x4          -<span style="color: #BB0000;">0.150</span>          0.140      -<span style="color: #BB0000;">2.11</span>         -<span style="color: #BB0000;">1.96</span>        5</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> x5           8.98           1.84       -<span style="color: #BB0000;">2.72</span>        -<span style="color: #BB0000;">11.7</span>         5</span></span></code></pre></div>
+<p>Metrics come from <code>yardstick</code>. Scores are always reported
+oriented so that greater is better: the metric itself for a metric to
+maximize (<code>"r2"</code>, <code>"accuracy"</code>,
+<code>"roc_auc"</code>) and its negative for a metric to minimize
+(<code>"mse"</code>, <code>"rmse"</code>, <code>"mae"</code>,
+<code>"log_loss"</code>). Importance is
+<code>score_full - score_reduced</code> in both cases, so it is positive
+whenever the anchor helps. (<code>"r2"</code> is
+<code>1 - SS_res / SS_tot</code>, the scikit-learn <code>r2</code>;
+yardstick’s squared-correlation <code>"rsq"</code> is also available but
+is a different quantity.)</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/shared_importance.html">shared_importance</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, learner <span class="op">=</span> <span class="st">"linear"</span>, metric <span class="op">=</span> <span class="st">"rsq"</span>, v <span class="op">=</span> <span class="fl">5</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span><span class="op">$</span><span class="va">importance</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 5 × 4</span></span></span>
-<span><span class="co">#&gt;   feature importance      sd n_folds</span></span>
-<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> x1         0.572   0.107         5</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> x2         0.419   0.118         5</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> x3         0.089<span style="text-decoration: underline;">7</span>  0.037<span style="text-decoration: underline;">9</span>        5</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> x4         0.005<span style="text-decoration: underline;">95</span> 0.006<span style="text-decoration: underline;">64</span>       5</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> x5         0.552   0.118         5</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/shared_importance.html">shared_importance</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, learner <span class="op">=</span> <span class="st">"linear"</span>, metric <span class="op">=</span> <span class="st">"r2"</span>, v <span class="op">=</span> <span class="fl">5</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span><span class="op">$</span><span class="va">importance</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 5 × 6</span></span></span>
+<span><span class="co">#&gt;   feature importance importance_std score_full score_reduced n_splits</span></span>
+<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>          <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> x1         0.628          0.132        0.935         0.306        5</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> x2         0.436          0.126        0.935         0.499        5</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> x3         0.091<span style="text-decoration: underline;">7</span>         0.037<span style="text-decoration: underline;">2</span>       0.935         0.843        5</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> x4         0.005<span style="text-decoration: underline;">76</span>        0.006<span style="text-decoration: underline;">76</span>      0.935         0.929        5</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> x5         0.617          0.148        0.935         0.318        5</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="classification">Classification<a class="anchor" aria-label="anchor" href="#classification"></a>
@@ -213,21 +219,21 @@ level is the event level for probability metrics, and folds are
 stratified by <code>y</code>.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">yb</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">y</span> <span class="op">&gt;</span> <span class="fu"><a href="https://rdrr.io/r/stats/median.html" class="external-link">median</a></span><span class="op">(</span><span class="va">y</span><span class="op">)</span>, <span class="st">"high"</span>, <span class="st">"low"</span><span class="op">)</span>, levels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"high"</span>, <span class="st">"low"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">res_b</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/shared_importance.html">shared_importance</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">yb</span>, learner <span class="op">=</span> <span class="st">"linear"</span>, metric <span class="op">=</span> <span class="st">"mn_log_loss"</span>, v <span class="op">=</span> <span class="fl">5</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<span><span class="va">res_b</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/shared_importance.html">shared_importance</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">yb</span>, learner <span class="op">=</span> <span class="st">"linear"</span>, metric <span class="op">=</span> <span class="st">"log_loss"</span>, v <span class="op">=</span> <span class="fl">5</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Warning: The learner emitted 16 warning(s) during fitting or prediction:</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> [16 times] glm.fit: fitted probabilities numerically 0 or 1 occurred</span></span>
 <span><span class="va">res_b</span><span class="op">$</span><span class="va">importance</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 5 × 4</span></span></span>
-<span><span class="co">#&gt;   feature importance     sd n_folds</span></span>
-<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> x1          0.406  0.129        5</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> x2          0.329  0.134        5</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> x3          0.079<span style="text-decoration: underline;">2</span> 0.037<span style="text-decoration: underline;">2</span>       5</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> x4         -<span style="color: #BB0000;">0.017</span><span style="color: #BB0000; text-decoration: underline;">4</span> 0.044<span style="text-decoration: underline;">4</span>       5</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> x5          0.400  0.144        5</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 5 × 6</span></span></span>
+<span><span class="co">#&gt;   feature importance importance_std score_full score_reduced n_splits</span></span>
+<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>          <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> x1          0.406          0.129      -<span style="color: #BB0000;">0.174</span>        -<span style="color: #BB0000;">0.580</span>        5</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> x2          0.329          0.134      -<span style="color: #BB0000;">0.174</span>        -<span style="color: #BB0000;">0.503</span>        5</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> x3          0.079<span style="text-decoration: underline;">2</span>         0.037<span style="text-decoration: underline;">2</span>     -<span style="color: #BB0000;">0.174</span>        -<span style="color: #BB0000;">0.253</span>        5</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> x4         -<span style="color: #BB0000;">0.017</span><span style="color: #BB0000; text-decoration: underline;">4</span>         0.044<span style="text-decoration: underline;">4</span>     -<span style="color: #BB0000;">0.174</span>        -<span style="color: #BB0000;">0.157</span>        5</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> x5          0.400          0.144      -<span style="color: #BB0000;">0.174</span>        -<span style="color: #BB0000;">0.574</span>        5</span></span></code></pre></div>
 <p>Multiclass responses work the same way; <code>"roc_auc"</code> then
-uses the Hand-Till estimator and <code>"mn_log_loss"</code> the
-multinomial log loss.</p>
+uses the Hand-Till estimator and <code>"log_loss"</code> the multinomial
+log loss.</p>
 </div>
 <div class="section level2">
 <h2 id="reproducibility-and-explicit-folds">Reproducibility and explicit folds<a class="anchor" aria-label="anchor" href="#reproducibility-and-explicit-folds"></a>
@@ -249,24 +255,16 @@ implementation of the same specification) pass explicit folds, either an
 <p>The values are out-of-sample predictive gains for a given learner,
 metric and resampling scheme. They are not causal effects, not
 conditional effects, and not regression coefficients. The
-<code>sd</code> column is the dispersion of the fold-level values and is
-purely descriptive; the package deliberately provides no confidence
-intervals or p-values.</p>
-<p>The optional <code>direction = TRUE</code> diagnostic reports the
-correlation between the anchor and the difference between the full and
-reduced predictions on the assessment rows. It summarises whether the
-anchor’s contribution to the prediction increases or decreases with the
-anchor’s value and nothing more.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/shared_importance.html">shared_importance</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, learner <span class="op">=</span> <span class="st">"linear"</span>, v <span class="op">=</span> <span class="fl">5</span>, seed <span class="op">=</span> <span class="fl">1</span>, direction <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">$</span><span class="va">importance</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 5 × 5</span></span></span>
-<span><span class="co">#&gt;   feature importance     sd n_folds direction</span></span>
-<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> x1          9.81   1.41         5         1</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> x2          6.67   0.572        5         1</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> x3          1.38   0.352        5         1</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> x4          0.074<span style="text-decoration: underline;">2</span> 0.079<span style="text-decoration: underline;">3</span>       5        -<span style="color: #BB0000;">1</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> x5          9.58   1.38         5         1</span></span></code></pre></div>
+<code>importance_std</code> column is the dispersion of the split-level
+values and is purely descriptive; the package deliberately provides no
+confidence intervals or p-values.</p>
+<p>The output tables use the column names shared with the Python package
+(<code>feature</code>, <code>importance</code>,
+<code>importance_std</code>, <code>score_full</code>,
+<code>score_reduced</code>, <code>n_splits</code>; per split
+additionally <code>split</code>, <code>n_train</code>,
+<code>n_test</code>). With a deterministic learner and explicit splits
+the two packages produce the same numbers.</p>
 </div>
 <div class="section level2">
 <h2 id="relation-to-the-reference-umfi-implementation">Relation to the reference UMFI implementation<a class="anchor" aria-label="anchor" href="#relation-to-the-reference-umfi-implementation"></a>

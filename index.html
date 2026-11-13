@@ -91,17 +91,17 @@
 <span><span class="co">#&gt; &lt;sharedimp_result&gt;</span></span>
 <span><span class="co">#&gt;   task:       regression</span></span>
 <span><span class="co">#&gt;   learner:    rand_forest</span></span>
-<span><span class="co">#&gt;   metric:     mse (minimize); importance = -(full - reduced)</span></span>
+<span><span class="co">#&gt;   metric:     mse (minimize); score = -mse, importance = score_full - score_reduced</span></span>
 <span><span class="co">#&gt;   resampling: 5-fold cross-validation (1 repeat)</span></span>
 <span><span class="co">#&gt;</span></span>
-<span><span class="co">#&gt; # A tibble: 5 × 4</span></span>
-<span><span class="co">#&gt;   feature importance    sd n_folds</span></span>
+<span><span class="co">#&gt; # A tibble: 5 × 6</span></span>
+<span><span class="co">#&gt;   feature importance importance_std score_full score_reduced n_splits</span></span>
 <span><span class="co">#&gt;   ...</span></span>
 <span></span>
-<span><span class="co"># Fast deterministic linear learner, explicit metric</span></span>
-<span><span class="fu"><a href="reference/shared_importance.html">shared_importance</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, learner <span class="op">=</span> <span class="st">"linear"</span>, metric <span class="op">=</span> <span class="st">"rsq"</span>, v <span class="op">=</span> <span class="fl">5</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<span><span class="co"># Fast deterministic linear learner, explicit metric (r2 = 1 - SS_res / SS_tot)</span></span>
+<span><span class="fu"><a href="reference/shared_importance.html">shared_importance</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, learner <span class="op">=</span> <span class="st">"linear"</span>, metric <span class="op">=</span> <span class="st">"r2"</span>, v <span class="op">=</span> <span class="fl">5</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Per-fold paired metrics</span></span>
+<span><span class="co"># Per-split paired scores (common schema with the Python package)</span></span>
 <span><span class="fu"><a href="reference/sharedimp_result.html">fold_results</a></span><span class="op">(</span><span class="va">res</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Classification (first level = event level), any yardstick metric</span></span>
@@ -117,18 +117,19 @@
 <div class="section level2">
 <h2 id="how-it-works">How it works<a class="anchor" aria-label="anchor" href="#how-it-works"></a>
 </h2>
-<p>For each anchor feature <code>i</code> and each fold:</p>
+<p>For each anchor feature <code>i</code> and each split:</p>
 <ol style="list-style-type: decimal">
-<li>On the training rows, regress every other feature on the anchor (<code>X_j = a_j + b_j X_i + e</code>) and residualize both training and assessment rows with the same <code>(a_j, b_j)</code>.</li>
-<li>Fit the learner to the <em>full</em> representation <code>[X_i, R_-i]</code> and to the <em>reduced</em> representation <code>[R_-i]</code>.</li>
-<li>Evaluate both on the assessment rows and take <code>importance = s * (metric_full - metric_reduced)</code>, where <code>s = +1</code> for a metric to maximize and <code>-1</code> for one to minimize.</li>
-<li>Average over folds; keep the fold-level table.</li>
+<li>On the training rows, regress every other feature on the anchor (<code>X_j = a_j + b_j X_i + e</code>) and residualize both training and assessment rows with the same <code>(a_j, b_j)</code>. A column that is an exact affine function of the anchor gets a residual of exactly zero (and is kept).</li>
+<li>Fit the learner to the <em>full</em> representation (the anchor, raw and in its original position, plus the residualized others) and to the <em>reduced</em> representation (the residualized others only).</li>
+<li>Score both on the assessment rows, with scores oriented greater-is-better (<code>-mse</code>, <code>-log_loss</code>, <code>r2</code>, <code>accuracy</code>, …), and take <code>importance = score_full - score_reduced</code>.</li>
+<li>Average over splits; keep the split-level table.</li>
 </ol>
+<p>The R and Python packages share one specification (<a href="docs/specification.html"><code>docs/specification.md</code></a>) and produce identical tables on deterministic learners with explicit splits.</p>
 </div>
 <div class="section level2">
 <h2 id="what-the-numbers-are-not">What the numbers are not<a class="anchor" aria-label="anchor" href="#what-the-numbers-are-not"></a>
 </h2>
-<p>They are out-of-sample predictive gains for a particular learner, metric and resampling scheme. They are <strong>not</strong> causal effects, conditional effects or regression coefficients, and the package provides no confidence intervals or p-values. The optional <code>direction = TRUE</code> diagnostic (correlation between the anchor and the full-minus-reduced prediction) is descriptive only.</p>
+<p>They are out-of-sample predictive gains for a particular learner, metric and resampling scheme. They are <strong>not</strong> causal effects, conditional effects or regression coefficients, and the package provides no confidence intervals or p-values; <code>importance_std</code> is a descriptive between-split dispersion.</p>
 </div>
 <div class="section level2">
 <h2 id="differences-from-the-reference-umfi-lr-implementation">Differences from the reference UMFI-LR implementation<a class="anchor" aria-label="anchor" href="#differences-from-the-reference-umfi-lr-implementation"></a>

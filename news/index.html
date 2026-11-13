@@ -35,14 +35,16 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="sharedimp-010">sharedimp 0.1.0<a class="anchor" aria-label="anchor" href="#sharedimp-010"></a></h2>
-<p>Initial release.</p>
+<p>Initial release, following the common R/Python specification v0.1 (<code>docs/specification.md</code>, reconciled with <code>sharedimp-py</code> on 2026-11-13).</p>
 <ul><li>
-<code><a href="../reference/shared_importance.html">shared_importance()</a></code>: UMFI-LR with fold-internal residualization, paired full/reduced out-of-sample evaluation, metric-direction-aware sign, no truncation of negative values, per-fold results, reproducible <code>seed</code>.</li>
-<li>Regression, binary and multiclass classification; built-in <code>"rand_forest"</code> (ranger) and <code>"linear"</code> learners, any <code>parsnip</code> model specification, or a custom <code><a href="../reference/sharedimp_learner.html">sharedimp_learner()</a></code>.</li>
-<li>Metrics via <code>yardstick</code> (<code>mse</code>, <code>rmse</code>, <code>mae</code>, <code>rsq</code>, <code>mn_log_loss</code>, <code>accuracy</code>, <code>roc_auc</code>, or any yardstick metric function).</li>
+<code><a href="../reference/shared_importance.html">shared_importance()</a></code>: UMFI-LR with fold-internal residualization, paired full/reduced out-of-sample evaluation, scores oriented greater-is-better, <code>importance = score_full - score_reduced</code>, no truncation of negative values, per-split results, reproducible <code>seed</code>.</li>
+<li>Common output schema: <code>feature</code>, <code>importance</code>, <code>importance_std</code>, <code>score_full</code>, <code>score_reduced</code>, <code>n_splits</code>; per split <code>feature</code>, <code>split</code>, <code>n_train</code>, <code>n_test</code>, <code>score_full</code>, <code>score_reduced</code>, <code>importance</code> (+ <code>id</code>, <code>id2</code>, <code>error</code>).</li>
+<li>Full representation keeps the anchor in its original column position; exactly collinear columns get a residual of exactly zero and are kept.</li>
+<li>Regression, binary and multiclass classification; built-in <code>"rand_forest"</code> (ranger) and <code>"linear"</code> learners, any <code>parsnip</code> model specification, or a custom <code><a href="../reference/sharedimp_learner.html">sharedimp_learner()</a></code>. A single predictor is compared with the null model.</li>
+<li>Metrics via <code>yardstick</code> with common names <code>mse</code>, <code>rmse</code>, <code>mae</code>, <code>r2</code>, <code>rsq</code>, <code>log_loss</code>, <code>accuracy</code>, <code>roc_auc</code>, or any yardstick metric function.</li>
 <li>Low-level helpers <code><a href="../reference/residualize_fit.html">residualize_fit()</a></code>, <code><a href="../reference/residualize_fit.html">residualize_apply()</a></code>, <code><a href="../reference/residualize_fit.html">build_representations()</a></code>.</li>
-<li>Optional <code>direction = TRUE</code> diagnostic.</li>
-<li>Shared R/Python specification in <code>docs/specification.md</code>; comparison with the reference implementation in <code>docs/umfi_comparison.md</code>.</li>
+<li>The direction diagnostic is not part of the v0.1 API (definitions differed between the R and Python drafts); the code is kept internal only.</li>
+<li>Cross-language verification record in <code>docs/parity/</code>; comparison with the reference implementation in <code>docs/umfi_comparison.md</code>.</li>
 </ul></div>
   </main></div>
 

@@ -44,8 +44,13 @@ accepts three kinds of `learner`:
 
 - a string: `"rand_forest"` (default; `ranger` with 500 trees and
   `min_n = 5`, `mtry = floor(sqrt(ncol(x)))`) or `"linear"` (ordinary
-  least squares, logistic regression, or multinomial logistic regression
-  via `nnet`, depending on the task);
+  least squares via
+  [`stats::lm.fit()`](https://rdrr.io/r/stats/lmfit.html), unpenalized
+  logistic regression via
+  [`stats::glm.fit()`](https://rdrr.io/r/stats/glm.html), or multinomial
+  logistic regression via
+  [`nnet::multinom()`](https://rdrr.io/pkg/nnet/man/multinom.html),
+  depending on the task; aliased coefficients are set to zero);
 
 - a `parsnip` model specification whose mode matches the task, used as
   is (its hyperparameters are fixed; nothing is tuned);
@@ -71,14 +76,14 @@ shared_importance(x, y, learner = ols, v = 3, seed = 1)
 #> <sharedimp_result>
 #>   task:       regression
 #>   learner:    OLS via lm.fit
-#>   metric:     mse (minimize); importance = -(full - reduced)
+#>   metric:     mse (minimize); score = -mse, importance = score_full - score_reduced
 #>   resampling: 3-fold cross-validation (1 repeat)
 #> 
-#> # A tibble: 4 × 4
-#>   feature importance     sd n_folds
-#>   <chr>        <dbl>  <dbl>   <int>
-#> 1 x1          0.365  0.874        3
-#> 2 x2         -0.0707 0.0569       3
-#> 3 x3          0.0961 0.0603       3
-#> 4 x4         -0.189  0.455        3
+#> # A tibble: 4 × 6
+#>   feature importance importance_std score_full score_reduced n_splits
+#>   <chr>        <dbl>          <dbl>      <dbl>         <dbl>    <int>
+#> 1 x1          0.365          0.874       -1.70         -2.07        3
+#> 2 x2         -0.0707         0.0569      -1.70         -1.63        3
+#> 3 x3          0.0961         0.0603      -1.70         -1.80        3
+#> 4 x4         -0.189          0.455       -1.70         -1.51        3
 ```

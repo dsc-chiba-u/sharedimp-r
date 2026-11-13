@@ -86,8 +86,10 @@ format described above.</p></dd>
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p><code><a href="shared_importance.html">shared_importance()</a></code> accepts three kinds of <code>learner</code>:</p><ul><li><p>a string: <code>"rand_forest"</code> (default; <code>ranger</code> with 500 trees and
 <code>min_n = 5</code>, <code>mtry = floor(sqrt(ncol(x)))</code>) or <code>"linear"</code> (ordinary least
-squares, logistic regression, or multinomial logistic regression via
-<code>nnet</code>, depending on the task);</p></li>
+squares via <code><a href="https://rdrr.io/r/stats/lmfit.html" class="external-link">stats::lm.fit()</a></code>, unpenalized logistic regression via
+<code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">stats::glm.fit()</a></code>, or multinomial logistic regression via
+<code><a href="https://rdrr.io/pkg/nnet/man/multinom.html" class="external-link">nnet::multinom()</a></code>, depending on the task; aliased coefficients are set
+to zero);</p></li>
 <li><p>a <code>parsnip</code> model specification whose mode matches the task, used as is
 (its hyperparameters are fixed; nothing is tuned);</p></li>
 <li><p>an object created by <code>sharedimp_learner()</code>.</p></li>
@@ -111,16 +113,16 @@ squares, logistic regression, or multinomial logistic regression via
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;sharedimp_result&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   task:       regression</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   learner:    OLS via lm.fit</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   metric:     mse (minimize); importance = -(full - reduced)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   metric:     mse (minimize); score = -mse, importance = score_full - score_reduced</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   resampling: 3-fold cross-validation (1 repeat)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 4 × 4</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   feature importance     sd n_folds</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span> x1          0.365  0.874        3</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span> x2         -<span style="color: #BB0000;">0.070</span><span style="color: #BB0000; text-decoration: underline;">7</span> 0.056<span style="text-decoration: underline;">9</span>       3</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">3</span> x3          0.096<span style="text-decoration: underline;">1</span> 0.060<span style="text-decoration: underline;">3</span>       3</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">4</span> x4         -<span style="color: #BB0000;">0.189</span>  0.455        3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 4 × 6</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   feature importance importance_std score_full score_reduced n_splits</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>          <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span> x1          0.365          0.874       -<span style="color: #BB0000;">1.70</span>         -<span style="color: #BB0000;">2.07</span>        3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span> x2         -<span style="color: #BB0000;">0.070</span><span style="color: #BB0000; text-decoration: underline;">7</span>         0.056<span style="text-decoration: underline;">9</span>      -<span style="color: #BB0000;">1.70</span>         -<span style="color: #BB0000;">1.63</span>        3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">3</span> x3          0.096<span style="text-decoration: underline;">1</span>         0.060<span style="text-decoration: underline;">3</span>      -<span style="color: #BB0000;">1.70</span>         -<span style="color: #BB0000;">1.80</span>        3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">4</span> x4         -<span style="color: #BB0000;">0.189</span>          0.455       -<span style="color: #BB0000;">1.70</span>         -<span style="color: #BB0000;">1.51</span>        3</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

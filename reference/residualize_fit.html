@@ -62,7 +62,7 @@ representations used by <code><a href="shared_importance.html">shared_importance
 <span></span>
 <span><span class="fu">residualize_apply</span><span class="op">(</span><span class="va">x</span>, <span class="va">coefs</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">build_representations</span><span class="op">(</span><span class="va">x_train</span>, <span class="va">x_assess</span>, <span class="va">anchor</span>, drop_constant <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">build_representations</span><span class="op">(</span><span class="va">x_train</span>, <span class="va">x_assess</span>, <span class="va">anchor</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -85,36 +85,39 @@ names. For <code>residualize_fit()</code> these are the training rows.</p></dd>
 <dt id="arg-x-train-x-assess">x_train, x_assess<a class="anchor" aria-label="anchor" href="#arg-x-train-x-assess"></a></dt>
 <dd><p>Training and assessment rows with identical columns.</p></dd>
 
-
-<dt id="arg-drop-constant">drop_constant<a class="anchor" aria-label="anchor" href="#arg-drop-constant"></a></dt>
-<dd><p>Should residualized columns that are constant on the
-training rows (for example the residual of an exact duplicate of the
-anchor) be dropped from both representations? Default <code>TRUE</code>, as in the
-specification.</p></dd>
-
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p><code>residualize_fit()</code> returns a list of class <code>sharedimp_residualization</code>
 with elements <code>anchor</code> (column name), <code>features</code> (names of the other
-columns), <code>intercept</code> and <code>slope</code> (named numeric vectors, one entry per
-other column), and <code>constant_anchor</code> (logical).</p>
+columns, in their original order), <code>intercept</code> and <code>slope</code> (named numeric
+vectors, one entry per other column), <code>collinear</code> (named logical vector,
+<code>TRUE</code> for columns whose residual is fixed at zero), <code>constant_anchor</code>
+(logical) and <code>n_train</code>.</p>
 <p><code>residualize_apply()</code> returns a numeric matrix with one column per entry
 of <code>coefs$features</code>, in that order.</p>
 <p><code>build_representations()</code> returns a list with <code>full_train</code>, <code>full_assess</code>
-(anchor column first, then residualized columns), <code>reduced_train</code>,
-<code>reduced_assess</code> (residualized columns only), <code>coefs</code>, and <code>dropped</code> (names
-of residualized columns removed because they were constant on the training
-rows).</p>
+(all <code>p</code> columns in the original order, the anchor raw and in its original
+position, the others residualized), <code>reduced_train</code>, <code>reduced_assess</code> (the
+same without the anchor column) and <code>coefs</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>For anchor <code>i</code> and every other column <code>j</code>,
 <code>b_j = Cov(x_i, x_j) / Var(x_i)</code> and <code>a_j = mean(x_j) - b_j * mean(x_i)</code>,
 both computed on the rows passed to <code>residualize_fit()</code>. The residualized
-column is <code>x_j - a_j - b_j * x_i</code>. If the anchor is constant on those rows,
-all slopes are set to zero, the intercepts become column means, and a
-warning is raised. No noise is ever injected.</p>
+column is <code>x_j - a_j - b_j * x_i</code>.</p>
+<p>Two deterministic rules cover degenerate cases (specification Section 5.1):</p><ul><li><p>If the anchor has zero sum of squares about its mean on the fitting rows
+(it is constant), all slopes are set to zero, the intercepts become the
+column means, and a warning of class <code>sharedimp_constant_anchor</code> is
+raised.</p></li>
+<li><p>If a column <code>j</code> is (numerically) an exact affine function of the anchor on
+the fitting rows, i.e. its residual sum of squares is at most <code>1e-10</code>
+times its total sum of squares, it is flagged in <code>collinear</code> and its
+residual is set to exactly <code>0</code> in <code>residualize_apply()</code>, for fitting and
+new rows alike. The column is kept, so the representations always have
+<code>p</code> and <code>p - 1</code> columns.</p></li>
+</ul><p>No noise is ever injected and no column is ever dropped.</p>
     </div>
 
     <div class="section level2">
@@ -122,16 +125,16 @@ warning is raised. No noise is ever injected.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span>a <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">20</span><span class="op">)</span>, b <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">20</span><span class="op">)</span>, c <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">20</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">x</span><span class="op">[</span>, <span class="st">"b"</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">x</span><span class="op">[</span>, <span class="st">"a"</span><span class="op">]</span> <span class="op">+</span> <span class="va">x</span><span class="op">[</span>, <span class="st">"b"</span><span class="op">]</span></span></span>
-<span class="r-in"><span><span class="va">cf</span> <span class="op">&lt;-</span> <span class="fu">residualize_fit</span><span class="op">(</span><span class="va">x</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">15</span>, <span class="op">]</span>, anchor <span class="op">=</span> <span class="st">"a"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">cf</span> <span class="op">&lt;-</span> <span class="fu">residualize_fit</span><span class="op">(</span><span class="va">x</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">15</span>, <span class="op">]</span>, anchor <span class="op">=</span> <span class="st">"b"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">cf</span><span class="op">$</span><span class="va">slope</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>         b         c </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1.6878654 0.3595172 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         a         c </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 0.4696116 0.1309606 </span>
 <span class="r-in"><span><span class="va">r</span> <span class="op">&lt;-</span> <span class="fu">residualize_apply</span><span class="op">(</span><span class="va">x</span><span class="op">[</span><span class="fl">16</span><span class="op">:</span><span class="fl">20</span>, <span class="op">]</span>, <span class="va">cf</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">rep</span> <span class="op">&lt;-</span> <span class="fu">build_representations</span><span class="op">(</span><span class="va">x</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">15</span>, <span class="op">]</span>, <span class="va">x</span><span class="op">[</span><span class="fl">16</span><span class="op">:</span><span class="fl">20</span>, <span class="op">]</span>, anchor <span class="op">=</span> <span class="st">"a"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">full_train</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">rep</span> <span class="op">&lt;-</span> <span class="fu">build_representations</span><span class="op">(</span><span class="va">x</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">15</span>, <span class="op">]</span>, <span class="va">x</span><span class="op">[</span><span class="fl">16</span><span class="op">:</span><span class="fl">20</span>, <span class="op">]</span>, anchor <span class="op">=</span> <span class="st">"b"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">full_train</span><span class="op">)</span> <span class="co"># anchor "b" stays in the second position</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] "a" "b" "c"</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">reduced_train</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "b" "c"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "a" "c"</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

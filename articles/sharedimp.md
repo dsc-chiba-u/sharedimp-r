@@ -54,17 +54,17 @@ res
 #> <sharedimp_result>
 #>   task:       regression
 #>   learner:    linear
-#>   metric:     mse (minimize); importance = -(full - reduced)
+#>   metric:     mse (minimize); score = -mse, importance = score_full - score_reduced
 #>   resampling: 5-fold cross-validation (1 repeat)
 #> 
-#> # A tibble: 5 × 4
-#>   feature importance     sd n_folds
-#>   <chr>        <dbl>  <dbl>   <int>
-#> 1 x1          9.81   1.41         5
-#> 2 x2          6.67   0.572        5
-#> 3 x3          1.38   0.352        5
-#> 4 x4          0.0742 0.0793       5
-#> 5 x5          9.58   1.38         5
+#> # A tibble: 5 × 6
+#>   feature importance importance_std score_full score_reduced n_splits
+#>   <chr>        <dbl>          <dbl>      <dbl>         <dbl>    <int>
+#> 1 x1          9.81           1.41       -0.993        -10.8         5
+#> 2 x2          6.67           0.572      -0.993         -7.66        5
+#> 3 x3          1.38           0.352      -0.993         -2.37        5
+#> 4 x4          0.0742         0.0793     -0.993         -1.07        5
+#> 5 x5          9.58           1.38       -0.993        -10.6         5
 ```
 
 Importance is `-(MSE_full - MSE_reduced)`, i.e. the increase in MSE
@@ -81,20 +81,21 @@ The per-fold paired metrics are always kept:
 ``` r
 
 fold_results(res)
-#> # A tibble: 25 × 7
-#>    feature id    id2   metric_full metric_reduced importance error
-#>    <chr>   <chr> <chr>       <dbl>          <dbl>      <dbl> <chr>
-#>  1 x1      Fold1 NA          1.29           10.1        8.82 NA   
-#>  2 x1      Fold2 NA          1.04           12.2       11.2  NA   
-#>  3 x1      Fold3 NA          0.708          10.0        9.32 NA   
-#>  4 x1      Fold4 NA          1.03            9.35       8.32 NA   
-#>  5 x1      Fold5 NA          0.904          12.3       11.4  NA   
-#>  6 x2      Fold1 NA          1.29            8.36       7.08 NA   
-#>  7 x2      Fold2 NA          1.04            7.34       6.31 NA   
-#>  8 x2      Fold3 NA          0.708           6.90       6.20 NA   
-#>  9 x2      Fold4 NA          1.03            8.50       7.48 NA   
-#> 10 x2      Fold5 NA          0.904           7.20       6.30 NA   
+#> # A tibble: 25 × 10
+#>    feature split n_train n_test score_full score_reduced importance id    id2  
+#>    <chr>   <int>   <int>  <int>      <dbl>         <dbl>      <dbl> <chr> <chr>
+#>  1 x1          1     240     60      -1.29        -10.1      8.82   Fold1 NA   
+#>  2 x2          1     240     60      -1.29         -8.36     7.08   Fold1 NA   
+#>  3 x3          1     240     60      -1.29         -2.88     1.59   Fold1 NA   
+#>  4 x4          1     240     60      -1.29         -1.48     0.190  Fold1 NA   
+#>  5 x5          1     240     60      -1.29        -10.2      8.96   Fold1 NA   
+#>  6 x1          2     240     60      -1.04        -12.2     11.2    Fold2 NA   
+#>  7 x2          2     240     60      -1.04         -7.34     6.31   Fold2 NA   
+#>  8 x3          2     240     60      -1.04         -2.08     1.04   Fold2 NA   
+#>  9 x4          2     240     60      -1.04         -1.02    -0.0211 Fold2 NA   
+#> 10 x5          2     240     60      -1.04        -11.6     10.5    Fold2 NA   
 #> # ℹ 15 more rows
+#> # ℹ 1 more variable: error <chr>
 ```
 
 Negative fold values for `x4` are expected and are reported as they are.
@@ -111,33 +112,36 @@ functions wrapped with
 
 res_rf <- shared_importance(x, y, v = 5, seed = 1)
 res_rf$importance
-#> # A tibble: 5 × 4
-#>   feature importance     sd n_folds
-#>   <chr>        <dbl>  <dbl>   <int>
-#> 1 x1           9.23  1.95         5
-#> 2 x2           6.37  0.823        5
-#> 3 x3           1.01  0.345        5
-#> 4 x4          -0.124 0.0872       5
-#> 5 x5           9.05  1.81         5
+#> # A tibble: 5 × 6
+#>   feature importance importance_std score_full score_reduced n_splits
+#>   <chr>        <dbl>          <dbl>      <dbl>         <dbl>    <int>
+#> 1 x1           9.36           2.03       -2.63        -12.0         5
+#> 2 x2           6.38           0.881      -2.26         -8.65        5
+#> 3 x3           1.02           0.380      -2.19         -3.21        5
+#> 4 x4          -0.150          0.140      -2.11         -1.96        5
+#> 5 x5           8.98           1.84       -2.72        -11.7         5
 ```
 
-Metrics come from `yardstick`. The direction attribute of the metric
-decides the sign convention, so a metric to maximize (`"rsq"`,
-`"accuracy"`, `"roc_auc"`) and a metric to minimize (`"mse"`, `"rmse"`,
-`"mae"`, `"mn_log_loss"`) both yield positive importance when the anchor
-helps.
+Metrics come from `yardstick`. Scores are always reported oriented so
+that greater is better: the metric itself for a metric to maximize
+(`"r2"`, `"accuracy"`, `"roc_auc"`) and its negative for a metric to
+minimize (`"mse"`, `"rmse"`, `"mae"`, `"log_loss"`). Importance is
+`score_full - score_reduced` in both cases, so it is positive whenever
+the anchor helps. (`"r2"` is `1 - SS_res / SS_tot`, the scikit-learn
+`r2`; yardstick’s squared-correlation `"rsq"` is also available but is a
+different quantity.)
 
 ``` r
 
-shared_importance(x, y, learner = "linear", metric = "rsq", v = 5, seed = 1)$importance
-#> # A tibble: 5 × 4
-#>   feature importance      sd n_folds
-#>   <chr>        <dbl>   <dbl>   <int>
-#> 1 x1         0.572   0.107         5
-#> 2 x2         0.419   0.118         5
-#> 3 x3         0.0897  0.0379        5
-#> 4 x4         0.00595 0.00664       5
-#> 5 x5         0.552   0.118         5
+shared_importance(x, y, learner = "linear", metric = "r2", v = 5, seed = 1)$importance
+#> # A tibble: 5 × 6
+#>   feature importance importance_std score_full score_reduced n_splits
+#>   <chr>        <dbl>          <dbl>      <dbl>         <dbl>    <int>
+#> 1 x1         0.628          0.132        0.935         0.306        5
+#> 2 x2         0.436          0.126        0.935         0.499        5
+#> 3 x3         0.0917         0.0372       0.935         0.843        5
+#> 4 x4         0.00576        0.00676      0.935         0.929        5
+#> 5 x5         0.617          0.148        0.935         0.318        5
 ```
 
 ## Classification
@@ -149,22 +153,22 @@ is the event level for probability metrics, and folds are stratified by
 ``` r
 
 yb <- factor(ifelse(y > median(y), "high", "low"), levels = c("high", "low"))
-res_b <- shared_importance(x, yb, learner = "linear", metric = "mn_log_loss", v = 5, seed = 1)
+res_b <- shared_importance(x, yb, learner = "linear", metric = "log_loss", v = 5, seed = 1)
 #> Warning: The learner emitted 16 warning(s) during fitting or prediction:
 #> • [16 times] glm.fit: fitted probabilities numerically 0 or 1 occurred
 res_b$importance
-#> # A tibble: 5 × 4
-#>   feature importance     sd n_folds
-#>   <chr>        <dbl>  <dbl>   <int>
-#> 1 x1          0.406  0.129        5
-#> 2 x2          0.329  0.134        5
-#> 3 x3          0.0792 0.0372       5
-#> 4 x4         -0.0174 0.0444       5
-#> 5 x5          0.400  0.144        5
+#> # A tibble: 5 × 6
+#>   feature importance importance_std score_full score_reduced n_splits
+#>   <chr>        <dbl>          <dbl>      <dbl>         <dbl>    <int>
+#> 1 x1          0.406          0.129      -0.174        -0.580        5
+#> 2 x2          0.329          0.134      -0.174        -0.503        5
+#> 3 x3          0.0792         0.0372     -0.174        -0.253        5
+#> 4 x4         -0.0174         0.0444     -0.174        -0.157        5
+#> 5 x5          0.400          0.144      -0.174        -0.574        5
 ```
 
 Multiclass responses work the same way; `"roc_auc"` then uses the
-Hand-Till estimator and `"mn_log_loss"` the multinomial log loss.
+Hand-Till estimator and `"log_loss"` the multinomial log loss.
 
 ## Reproducibility and explicit folds
 
@@ -186,28 +190,16 @@ res_fixed$resampling
 
 The values are out-of-sample predictive gains for a given learner,
 metric and resampling scheme. They are not causal effects, not
-conditional effects, and not regression coefficients. The `sd` column is
-the dispersion of the fold-level values and is purely descriptive; the
-package deliberately provides no confidence intervals or p-values.
+conditional effects, and not regression coefficients. The
+`importance_std` column is the dispersion of the split-level values and
+is purely descriptive; the package deliberately provides no confidence
+intervals or p-values.
 
-The optional `direction = TRUE` diagnostic reports the correlation
-between the anchor and the difference between the full and reduced
-predictions on the assessment rows. It summarises whether the anchor’s
-contribution to the prediction increases or decreases with the anchor’s
-value and nothing more.
-
-``` r
-
-shared_importance(x, y, learner = "linear", v = 5, seed = 1, direction = TRUE)$importance
-#> # A tibble: 5 × 5
-#>   feature importance     sd n_folds direction
-#>   <chr>        <dbl>  <dbl>   <int>     <dbl>
-#> 1 x1          9.81   1.41         5         1
-#> 2 x2          6.67   0.572        5         1
-#> 3 x3          1.38   0.352        5         1
-#> 4 x4          0.0742 0.0793       5        -1
-#> 5 x5          9.58   1.38         5         1
-```
+The output tables use the column names shared with the Python package
+(`feature`, `importance`, `importance_std`, `score_full`,
+`score_reduced`, `n_splits`; per split additionally `split`, `n_train`,
+`n_test`). With a deterministic learner and explicit splits the two
+packages produce the same numbers.
 
 ## Relation to the reference UMFI implementation
 

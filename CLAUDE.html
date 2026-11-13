@@ -37,39 +37,46 @@
 
 <div class="section level2">
 <h2 id="what-this-package-is">What this package is<a class="anchor" aria-label="anchor" href="#what-this-package-is"></a></h2>
-<p><code>sharedimp</code> implements the linear-regression variant of Ultra-marginal Feature Importance (UMFI-LR, Janssen, Guan &amp; Robeva, AISTATS 2023) as a careful, resampling-based R package built on tidymodels (parsnip / rsample / yardstick). It is a companion to the Python package in <code>../sharedimp-py</code>; both follow <code>docs/specification.md</code>, which is the single source of truth for the algorithm, inputs, outputs and metric conventions. Paper benchmarks live in <code>../sharedimp-experiments</code>, not here. Never edit files in the sibling repositories from this one; report differences instead.</p>
+<p><code>sharedimp</code> implements the linear-regression variant of Ultra-marginal Feature Importance (UMFI-LR, Janssen, Guan &amp; Robeva, AISTATS 2023) as a careful, resampling-based R package built on tidymodels (parsnip / rsample / yardstick). It is a companion to the Python package in <code>../sharedimp-py</code>; both follow <code>docs/specification.md</code> (v0.1, reconciled 2026-11-13), which is the single source of truth for the algorithm, inputs, outputs and metric conventions. The goal is that R and Python compute the same UMFI-LR quantity; paper benchmarks live in <code>../sharedimp-experiments</code>, not here. Never edit files in the sibling repositories from this one; report differences instead (<code>docs/python_changes.md</code> lists what Python still has to change).</p>
 <p>We do not claim a new importance measure. Do not describe the output as a causal or conditional effect. Do not add confidence intervals, p-values, or other formal inference. Keep the user-facing API small: <code><a href="reference/shared_importance.html">shared_importance()</a></code> plus a few accessors and low-level helpers.</p>
 </div>
 <div class="section level2">
 <h2 id="algorithm-summary-details-in-docsspecificationmd">Algorithm (summary; details in docs/specification.md)<a class="anchor" aria-label="anchor" href="#algorithm-summary-details-in-docsspecificationmd"></a></h2>
-<p>For each anchor feature <code>i</code> and each resampling fold:</p>
+<p>For each split and each anchor feature <code>i</code>:</p>
 <ol style="list-style-type: decimal"><li>On the <strong>training rows only</strong>, regress every other feature <code>X_j</code> on <code>X_i</code> (OLS with intercept) and keep <code>(a_j, b_j)</code>.</li>
-<li>Residualize training and assessment rows with the <strong>same</strong> coefficients: <code>R_j = X_j − a_j − b_j X_i</code>.</li>
-<li>Full representation <code>[X_i, R_{-i}]</code>; reduced representation <code>[R_{-i}]</code> (residual columns constant on the training fold are dropped from both).</li>
+<li>Residualize training and assessment rows with the <strong>same</strong> coefficients: <code>R_j = X_j − a_j − b_j X_i</code>. A column that is an exact affine function of the anchor on the training rows (<code>SS_res &lt;= 1e-10 SS_tot</code>) gets a residual of exactly 0 and is <strong>kept</strong>. A constant anchor (zero sum of squares) gets slopes 0 and a warning.</li>
+<li>Full representation = <code>X</code> with the other columns replaced by their residuals, the anchor raw and <strong>in its original position</strong>; reduced representation = full without the anchor column. Column count is always <code>p</code> and <code>p − 1</code>; nothing is dropped.</li>
 <li>Fit the learner on both representations, predict the assessment rows, evaluate the metric on each.</li>
+<li>Scores are oriented greater-is-better (<code>score = metric</code> for maximize metrics, <code>−metric</code> for minimize metrics); <code>importance = score_full − score_reduced</code>, so positive always means “keeping the anchor helps”. Negatives are kept.</li>
+<li>Aggregate by the mean over splits; report split-level results too.</li>
+</ol><p>Defaults: 5-fold CV (stratified for classification), random forest via ranger with 500 trees / <code>min_n = 5</code>, MSE for regression and log loss for classification. <code>p = 1</code> is allowed: the reduced model is the null model.</p>
+</div>
+<div class="section level2">
+<h2 id="output-schema-shared-with-python">Output schema (shared with Python)<a class="anchor" aria-label="anchor" href="#output-schema-shared-with-python"></a></h2>
+<ul><li>
+<code>$importance</code>: <code>feature, importance, importance_std, score_full, score_reduced, n_splits</code> — one row per anchor in <code>features</code> order.</li>
 <li>
-<code>importance = s * (metric_full − metric_reduced)</code> with <code>s = +1</code> for maximize metrics and <code>−1</code> for minimize metrics, so positive always means “keeping the anchor helps”. Negatives are kept.</li>
-<li>Aggregate by the mean over folds; report fold-level results too.</li>
-</ol><p>Defaults: 5-fold CV (stratified for classification), random forest via ranger with 500 trees / <code>min_n = 5</code>, MSE for regression and multinomial log loss for classification.</p>
+<code><a href="reference/sharedimp_result.html">fold_results()</a></code>: <code>feature, split, n_train, n_test, score_full, score_reduced, importance</code> (common) + <code>id, id2, error</code> (R only) — ordered by split, then feature.</li>
+</ul><p>The direction diagnostic is <strong>not</strong> part of the v0.1 API (the R and Python drafts defined different statistics). <code>R/direction.R</code> is kept internal and unexported; do not expose it without an agreed definition.</p>
 </div>
 <div class="section level2">
 <h2 id="code-layout">Code layout<a class="anchor" aria-label="anchor" href="#code-layout"></a></h2>
 <ul><li>
 <code>R/residualize.R</code> — pure matrix core: <code><a href="reference/residualize_fit.html">residualize_fit()</a></code>, <code><a href="reference/residualize_fit.html">residualize_apply()</a></code>, <code><a href="reference/residualize_fit.html">build_representations()</a></code>. No learner or tidymodels code here.</li>
 <li>
-<code>R/learners.R</code> — learner adapters: <code><a href="reference/sharedimp_learner.html">sharedimp_learner()</a></code>, built-in <code>"linear"</code> and <code>"rand_forest"</code>, parsnip <code>model_spec</code> adapter, null model.</li>
+<code>R/learners.R</code> — learner adapters: <code><a href="reference/sharedimp_learner.html">sharedimp_learner()</a></code>, built-in <code>"linear"</code> (<code>lm.fit</code> / <code>glm.fit</code> / <code><a href="https://rdrr.io/pkg/nnet/man/multinom.html" class="external-link">nnet::multinom</a></code>, aliased coefficients → 0) and <code>"rand_forest"</code>, parsnip <code>model_spec</code> adapter, null model.</li>
 <li>
-<code>R/metrics.R</code> — metric adapters around yardstick; direction handling.</li>
+<code>R/metrics.R</code> — metric adapters around yardstick; direction handling; <code>mse</code>.</li>
 <li>
-<code>R/shared_importance.R</code> — orchestration (folds × anchors), seeding, errors.</li>
+<code>R/shared_importance.R</code> — orchestration (splits × anchors), seeding, errors.</li>
 <li>
 <code>R/result.R</code> — <code>sharedimp_result</code> class, <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>, <code><a href="reference/sharedimp_result.html">fold_results()</a></code>.</li>
 <li>
-<code>R/direction.R</code> — optional direction diagnostic.</li>
+<code>R/direction.R</code> — experimental, unexported, unreachable from the API.</li>
 <li>
 <code>tests/testthat/</code> — one file per concern; see “Testing”.</li>
 <li>
-<code>docs/specification.md</code> — shared spec. <code>docs/umfi_comparison.md</code> — record of the numerical comparison with the reference implementation.</li>
+<code>docs/specification.md</code> — common spec. <code>docs/python_changes.md</code> — what the Python side must change. <code>docs/parity/</code> — cross-language verification record. <code>docs/umfi_comparison.md</code> — comparison with the reference implementation.</li>
 </ul></div>
 <div class="section level2">
 <h2 id="development-environment">Development environment<a class="anchor" aria-label="anchor" href="#development-environment"></a></h2>
@@ -79,18 +86,18 @@ $R -e 'devtools::document()'
 $R -e 'devtools::test()'
 $R -e 'devtools::check()'          # full R CMD check
 $R -e 'devtools::build_vignettes()'</code></pre>
-<p>Run <code>devtools::document()</code> after changing roxygen comments; <code>NAMESPACE</code> and <code>man/</code> are generated, do not hand-edit them.</p>
+<p>Run <code>devtools::document()</code> after changing roxygen comments; <code>NAMESPACE</code> and <code>man/</code> are generated, do not hand-edit them. The Python package can be <em>run</em> for comparisons from <code>../sharedimp-py</code> with its <code>.venv/bin/python</code> (read-only; never edit that repository from here).</p>
 </div>
 <div class="section level2">
 <h2 id="constraints">Constraints<a class="anchor" aria-label="anchor" href="#constraints"></a></h2>
 <ul><li>Numeric predictors only; no imputation; factors in <code>x</code> are an error.</li>
-<li>Residualization coefficients must be estimated on the training fold only. Any change touching <code><a href="reference/residualize_fit.html">build_representations()</a></code> must keep the leakage tests passing.</li>
+<li>Residualization coefficients must be estimated on the training rows only. Any change touching <code><a href="reference/residualize_fit.html">build_representations()</a></code> must keep the leakage tests and the cross-language fixture (<code>test-common-spec.R</code>) passing.</li>
 <li>Fixed hyperparameters inside <code><a href="reference/shared_importance.html">shared_importance()</a></code>; no tuning.</li>
 <li>Negative importance is never truncated.</li>
-<li>Metric direction is taken from the yardstick <code>direction</code> attribute; never hard-code a sign for a named metric elsewhere.</li>
-<li>Learner failures on a fold produce <code>NA</code> for that fold plus a warning, not an abort (unless <code>on_error = "error"</code>).</li>
-<li>Dependencies: Imports are parsnip, rsample, yardstick, ranger, rlang, tibble, stats. Everything else (glmnet, kernlab, ggplot2, …) is Suggests and must be guarded with <code><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace()</a></code>.</li>
-<li>Target CRAN quality: <code>R CMD check</code> with no ERRORs/WARNINGs; examples run in seconds; tests deterministic (always pass <code>seed</code>).</li>
+<li>Metric direction is taken from the yardstick <code>direction</code> attribute; never hard-code a sign for a named metric elsewhere. <code>r2</code> means <code>rsq_trad</code> (1 − SS_res/SS_tot), <code>rsq</code> means squared Pearson correlation; keep them distinct.</li>
+<li>Learner failures on a split produce <code>NA</code> for that split plus a warning, not an abort (unless <code>on_error = "error"</code>).</li>
+<li>Dependencies: Imports are parsnip, rsample, yardstick, ranger, rlang, tibble, stats. Everything else (glmnet, kernlab, ggplot2, nnet, …) is Suggests and must be guarded with <code><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace()</a></code>.</li>
+<li>Target CRAN quality: <code>R CMD check</code> with no ERRORs/WARNINGs; examples run in seconds; tests deterministic (always pass <code>seed</code> or explicit <code>resamples</code>).</li>
 </ul></div>
 <div class="section level2">
 <h2 id="testing-policy">Testing policy<a class="anchor" aria-label="anchor" href="#testing-policy"></a></h2>
@@ -98,13 +105,14 @@ $R -e 'devtools::build_vignettes()'</code></pre>
 <ol style="list-style-type: decimal"><li>Residualization coefficients equal <code>lm(X_j ~ X_i)</code> on the training rows.</li>
 <li>Training and assessment rows are transformed with the same coefficients.</li>
 <li>Assessment rows do not influence the coefficients (perturbing assessment rows leaves training representations unchanged).</li>
-<li>Full / reduced representations have the specified columns and order.</li>
+<li>Full / reduced representations have the specified columns and order (anchor in place); importance is invariant to the column order of <code>x</code>.</li>
 <li>With the linear learner and MSE, importance matches the analytic expectation on a linear-Gaussian design.</li>
-<li>Exact duplicates and independent predictors behave as specified.</li>
-<li>Comparison with the reference UMFI-LR preprocessing (function vendored in the test under its MIT licence) — document, never fabricate, agreement.</li>
+<li>Exact duplicates (zero residual column, kept), independent predictors and <code>p = 1</code> (null model) behave as specified.</li>
+<li>Comparison with the reference UMFI-LR preprocessing (function re-implemented in the test) — document, never fabricate, agreement.</li>
 <li>Smoke tests for regression / binary / multiclass with both built-in learners and a parsnip spec.</li>
 <li>Negative importance survives; learner failures yield <code>NA</code> + warning.</li>
-</ol><p>Use <code>custom learners</code> that record the matrices they receive to test the pipeline without depending on a particular model.</p>
+<li>Output schema (both tables) and the deterministic cross-language fixture of specification Section 15.1 reproduce the recorded values; metric definitions match the specification table.</li>
+</ol><p>Use custom learners that record the matrices they receive to test the pipeline without depending on a particular model.</p>
 </div>
 <div class="section level2">
 <h2 id="commit-discipline">Commit discipline<a class="anchor" aria-label="anchor" href="#commit-discipline"></a></h2>

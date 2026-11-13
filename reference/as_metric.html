@@ -3,15 +3,17 @@
 metric argument accepts a built-in metric name or any yardstick metric
 function (class numeric_metric, class_metric, or prob_metric) whose
 direction is &quot;maximize&quot; or &quot;minimize&quot;. The direction determines the
-sign convention: importance is +(full - reduced) for metrics to maximize
-and -(full - reduced) for metrics to minimize, so that a positive value
-always means that keeping the anchor feature predicts better."><meta property="og:description" content="shared_importance() evaluates predictions with yardstick metrics. The
+orientation of the reported scores: the metric value for metrics to
+maximize and its negative for metrics to minimize, so that
+importance = score_full - score_reduced is positive whenever keeping the
+anchor feature predicts better."><meta property="og:description" content="shared_importance() evaluates predictions with yardstick metrics. The
 metric argument accepts a built-in metric name or any yardstick metric
 function (class numeric_metric, class_metric, or prob_metric) whose
 direction is &quot;maximize&quot; or &quot;minimize&quot;. The direction determines the
-sign convention: importance is +(full - reduced) for metrics to maximize
-and -(full - reduced) for metrics to minimize, so that a positive value
-always means that keeping the anchor feature predicts better."></head><body>
+orientation of the reported scores: the metric value for metrics to
+maximize and its negative for metrics to minimize, so that
+importance = score_full - score_reduced is positive whenever keeping the
+anchor feature predicts better."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -51,9 +53,10 @@ always means that keeping the anchor feature predicts better."></head><body>
 <code>metric</code> argument accepts a built-in metric name or any <code>yardstick</code> metric
 function (class <code>numeric_metric</code>, <code>class_metric</code>, or <code>prob_metric</code>) whose
 direction is <code>"maximize"</code> or <code>"minimize"</code>. The direction determines the
-sign convention: importance is <code>+(full - reduced)</code> for metrics to maximize
-and <code>-(full - reduced)</code> for metrics to minimize, so that a positive value
-always means that keeping the anchor feature predicts better.</p>
+orientation of the reported <em>scores</em>: the metric value for metrics to
+maximize and its negative for metrics to minimize, so that
+<code>importance = score_full - score_reduced</code> is positive whenever keeping the
+anchor feature predicts better.</p>
     </div>
 
     <div class="section level2">
@@ -92,10 +95,13 @@ and <code>fn</code>. <code>mse</code> is the <code>yardstick</code>-style metric
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Built-in names:</p><table class="table table"><tr><td>name</td><td>task</td><td>direction</td></tr><tr><td><code>"mse"</code> (default)</td><td>regression</td><td>minimize</td></tr><tr><td><code>"rmse"</code></td><td>regression</td><td>minimize</td></tr><tr><td><code>"mae"</code></td><td>regression</td><td>minimize</td></tr><tr><td><code>"rsq"</code></td><td>regression</td><td>maximize</td></tr><tr><td><code>"mn_log_loss"</code> (default)</td><td>classification</td><td>minimize</td></tr><tr><td><code>"accuracy"</code></td><td>classification</td><td>maximize</td></tr><tr><td><code>"roc_auc"</code></td><td>classification</td><td>maximize</td></tr></table><p><code>"mse"</code> is the mean squared error, implemented as a <code>yardstick</code> metric
-because <code>yardstick</code> does not ship one. For binary tasks the first level of
-<code>y</code> is the event level of probability metrics; for multiclass tasks
-<code>"roc_auc"</code> uses the Hand-Till estimator (the <code>yardstick</code> default).</p>
+    <p>Built-in names (the common names of the R/Python specification, with the
+<code>yardstick</code> function and the matching scikit-learn scorer):</p><table class="table table"><tr><td>name</td><td>task</td><td>direction</td><td>yardstick</td><td>scikit-learn</td></tr><tr><td><code>"mse"</code> (default)</td><td>regression</td><td>minimize</td><td><code>mse</code> (this package)</td><td><code>neg_mean_squared_error</code></td></tr><tr><td><code>"rmse"</code></td><td>regression</td><td>minimize</td><td><code>rmse</code></td><td><code>neg_root_mean_squared_error</code></td></tr><tr><td><code>"mae"</code></td><td>regression</td><td>minimize</td><td><code>mae</code></td><td><code>neg_mean_absolute_error</code></td></tr><tr><td><code>"r2"</code></td><td>regression</td><td>maximize</td><td><code>rsq_trad</code> (1 - SS_res / SS_tot)</td><td><code>r2</code></td></tr><tr><td><code>"rsq"</code></td><td>regression</td><td>maximize</td><td><code>rsq</code> (squared Pearson correlation)</td><td>none built in</td></tr><tr><td><code>"log_loss"</code> (default)</td><td>classification</td><td>minimize</td><td><code>mn_log_loss</code></td><td><code>neg_log_loss</code></td></tr><tr><td><code>"accuracy"</code></td><td>classification</td><td>maximize</td><td><code>accuracy</code></td><td><code>accuracy</code></td></tr><tr><td><code>"roc_auc"</code></td><td>classification</td><td>maximize</td><td><code>roc_auc</code> (binary; Hand-Till for multiclass)</td><td><code>roc_auc</code> / <code>roc_auc_ovo</code></td></tr></table><p>The <code>yardstick</code> names <code>"rsq_trad"</code> and <code>"mn_log_loss"</code> are accepted as
+aliases of <code>"r2"</code> and <code>"log_loss"</code>. <code>"mse"</code> is implemented here because
+<code>yardstick</code> does not ship a mean squared error. For binary tasks the first
+level of <code>y</code> is the event level of probability metrics (log loss and AUC do
+not depend on this choice); for multiclass tasks <code>"roc_auc"</code> uses the
+Hand-Till estimator.</p>
     </div>
 
     <div class="section level2">
