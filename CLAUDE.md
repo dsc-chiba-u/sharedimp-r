@@ -124,10 +124,13 @@ only; pushes to `main` publish the same build to
 `docker/build-push-action` call; `vX.Y.Z` tags publish semver tags
 without `latest`; missing `DOCKER_USERNAME` / `DOCKER_PASSWORD` secrets
 fail the publishing run early with an explicit message; GHCR uses
-`GITHUB_TOKEN`. Docker is not usable from the sandbox on this machine
-(snap socket owned by root), so verify image changes through the Actions
-run, or run `sudo docker build .` yourself. Never report a registry push
-as successful without seeing the workflow succeed.
+`GITHUB_TOKEN`. A manual run with `publish=false`
+(`gh workflow run build_test_push.yml -f publish=false`) builds and
+tests only, which validates the Dockerfile in CI without registry
+credentials. Docker is not usable from the sandbox on this machine (snap
+socket owned by root), so verify image changes through the Actions run,
+or run `sudo docker build .` yourself. Never report a registry push as
+successful without seeing the workflow succeed.
 
 ## Constraints
 
