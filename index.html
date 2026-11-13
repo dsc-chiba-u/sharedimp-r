@@ -73,11 +73,22 @@
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"dsc-chiba-u/sharedimp-r"</span><span class="op">)</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="docker">Docker<a class="anchor" aria-label="anchor" href="#docker"></a>
+</h3>
+<p>A ready-to-use image with R, <code>sharedimp</code> and its dependencies is published from the <code>main</code> branch to GitHub Container Registry and Docker Hub. Both registries receive the same build; tags are <code>latest</code> (last successful build of <code>main</code>) and the short commit SHA.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="ex">docker</span> pull ghcr.io/dsc-chiba-u/sharedimp-r:latest   <span class="co"># or koki/sharedimp-r:latest</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="ex">docker</span> run <span class="at">--rm</span> <span class="at">-it</span> ghcr.io/dsc-chiba-u/sharedimp-r:latest           <span class="co"># interactive R</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="ex">docker</span> run <span class="at">--rm</span> <span class="at">-v</span> <span class="st">"</span><span class="va">$PWD</span><span class="st">"</span>:/work ghcr.io/dsc-chiba-u/sharedimp-r:latest Rscript analysis.R</span></code></pre></div>
+<p>The image is based on <code>rocker/r-ver</code> (a pinned stable R release) and is built by <code>.github/workflows/build_test_push.yml</code>; the build installs the package, runs its full test suite and a smoke test (<code>docker/smoke-test.R</code>) inside the image and fails if any of them fails. Pull requests only build and test; nothing is pushed. To build locally:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="ex">docker</span> build <span class="at">-t</span> sharedimp-r .</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="ex">docker</span> run <span class="at">--rm</span> sharedimp-r Rscript <span class="at">-e</span> <span class="st">'library(sharedimp); example(shared_importance)'</span></span></code></pre></div>
+</div>
 </div>
 <div class="section level2">
 <h2 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a>
 </h2>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/dsc-chiba-u/sharedimp-r" class="external-link">sharedimp</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
 <span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">300</span></span>
@@ -221,6 +232,9 @@
 <h2 data-toc-skip>Dev status</h2>
 <ul class="list-unstyled">
 <li><a href="https://github.com/dsc-chiba-u/sharedimp-r/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/dsc-chiba-u/sharedimp-r/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
+<li><a href="https://github.com/dsc-chiba-u/sharedimp-r/actions/workflows/build_test_push.yml" class="external-link"><img src="https://github.com/dsc-chiba-u/sharedimp-r/actions/workflows/build_test_push.yml/badge.svg" alt="DockerHub/GHCR"></a></li>
+<li><a href="https://github.com/dsc-chiba-u/sharedimp-r/pkgs/container/sharedimp-r" class="external-link"><img src="https://img.shields.io/badge/ghcr.io-dsc--chiba--u%2Fsharedimp--r-blue?logo=docker" alt="GHCR"></a></li>
+<li><a href="https://hub.docker.com/r/koki/sharedimp-r" class="external-link"><img src="https://img.shields.io/docker/v/koki/sharedimp-r?label=docker%20hub&amp;logo=docker" alt="Docker Hub"></a></li>
 <li><a href="LICENSE.html"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a></li>
 </ul>
 </div>

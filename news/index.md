@@ -33,3 +33,7 @@ Initial release, following the common R/Python specification v0.1
   only.
 - Cross-language verification record in `docs/parity/`; comparison with
   the reference implementation in `docs/umfi_comparison.md`.
+- Docker image (`Dockerfile`, `rocker/r-ver` base) published to
+  `ghcr.io/dsc-chiba-u/sharedimp-r` and `koki/sharedimp-r` by
+  `.github/workflows/build_test_push.yml`; the build runs the test suite
+  and `docker/smoke-test.R`.

@@ -104,6 +104,31 @@ and `man/` are generated, do not hand-edit them. The Python package can
 be *run* for comparisons from `../sharedimp-py` with its
 `.venv/bin/python` (read-only; never edit that repository from here).
 
+## Docker image
+
+`Dockerfile` (base `rocker/r-ver:<R_VERSION>`, pinned stable R; not
+Bioconductor, which sharedimp does not need) installs the Imports plus
+`nnet`, `testthat`, `withr`, installs the package with
+`--install-tests`, runs
+[`tools::testInstalledPackage()`](https://rdrr.io/r/tools/testInstalledPackage.html)
+and `docker/smoke-test.R` during the build, and removes the sources.
+`.dockerignore` keeps docs, CI files and build artifacts out of the
+context; `Dockerfile`, `.dockerignore` and `docker/` are in
+`.Rbuildignore`.
+
+`.github/workflows/build_test_push.yml` (policy from
+`dsc-chiba-u/fbrglm` with refinements): pull requests build and test
+only; pushes to `main` publish the same build to
+`ghcr.io/dsc-chiba-u/sharedimp-r` and `koki/sharedimp-r` with tags
+`latest` + short SHA via `docker/metadata-action` and one
+`docker/build-push-action` call; `vX.Y.Z` tags publish semver tags
+without `latest`; missing `DOCKER_USERNAME` / `DOCKER_PASSWORD` secrets
+fail the publishing run early with an explicit message; GHCR uses
+`GITHUB_TOKEN`. Docker is not usable from the sandbox on this machine
+(snap socket owned by root), so verify image changes through the Actions
+run, or run `sudo docker build .` yourself. Never report a registry push
+as successful without seeing the workflow succeed.
+
 ## Constraints
 
 - Numeric predictors only; no imputation; factors in `x` are an error.
