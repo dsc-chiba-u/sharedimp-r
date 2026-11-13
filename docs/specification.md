@@ -260,9 +260,10 @@ Important distinctions:
   implementation uses `mse` for regression and multinomial `log_loss` for
   classification, in both languages. Both are smooth, strictly proper scores
   that decompose over observations. `r2` and `accuracy` remain available by
-  name. (Python at commit `692c3fe` still defaults to `estimator.score`, i.e.
-  R² / accuracy; Section 16, item 3.) Parity tests pass the metric explicitly
-  regardless.
+  name. (Python implements this since commit `692c3fe`:
+  `scoring=None` resolves to `neg_mean_squared_error` for regressors and to
+  `common_scorer("log_loss")` for classifiers.) Parity tests pass the metric
+  explicitly regardless.
 
 R additionally accepts any yardstick metric function; Python any scikit-learn
 scorer name or callable.
@@ -298,11 +299,11 @@ behaviour in both languages** is:
   ones; if no split succeeds, the feature's summary values are `NA` and
   `n_splits = 0`.
 
-An option switches to **aborting at the first failure** instead (R:
-`on_error = "error"`; Python: the corresponding argument, name to be chosen on
-the Python side, e.g. `on_error="raise"`). Cross-language comparisons use the
-aborting mode so that a failure cannot be mistaken for a value. (Python at
-commit `692c3fe` only has the aborting behaviour; Section 16, item 4.)
+An option switches to **aborting at the first failure** instead
+(`on_error = "error"` in both languages; the default is `"warn"`).
+Cross-language comparisons use the aborting mode so that a failure cannot be
+mistaken for a value. (Python implements this since commit `692c3fe`, with an
+`error` column and `n_failed` in its result.)
 
 ## 11. Output schema
 
@@ -497,22 +498,25 @@ committed the working tree compared in Section 15.
    *Status: done in the working tree (`fit_null_model`).*
 3. **Default scoring.** Default to `neg_mean_squared_error` for regressors and
    `neg_log_loss` for classifiers instead of `estimator.score`. This is now a
-   **normative** part of the common specification (Section 9.1, decided
-   2026-11-13 after the Python side asked for a joint decision).
-   *Status at `692c3fe`: open; Python documents the difference and keeps
-   `estimator.score`.*
+   **normative** part of the common specification (Section 9.1).
+   *Status at `692c3fe`: done in code (`_scoring.py`); the Python
+   `docs/specification.md` §10/§11 and README still describe the old
+   `estimator.score` default and should be updated.*
 4. **Learner failures.** Record a failed `(split, feature)` fit as `NaN` with a
    warning and aggregate over the remaining splits (`n_splits` counts the
    successful ones) **by default**, with an option to raise instead
    (Section 10, now normative). A training split with a single class is such
    a failure.
-   *Status at `692c3fe`: open; Python propagates the exception.*
+   *Status at `692c3fe`: done in code (`on_error = "warn" | "error"`,
+   default `"warn"`); the Python specification text §10/§11 is stale on this
+   point.*
 5. **Specification pointer.** Replace the provisional
    `docs/specification.md` by a pointer to this file plus Python-specific
    notes; drop the provisional label.
    *Status at `692c3fe`: open; the Python file is a full `0.2-draft` restatement
-   that agrees with this document on every decided item, with its §10/§11
-   listing the two open behaviours above.*
+   that agrees with this document on every decided item, except that its
+   §10/§11 still report items 3 and 4 as open although the code implements
+   them.*
 6. **Metric documentation.** State the scorer ↔ common-name mapping of
    Section 9.1 (`r2` = `r2`, `roc_auc` multiclass = `roc_auc_ovo` macro, log
    loss clipping depends on scikit-learn ≥ 1.5) and provide the Pearson²

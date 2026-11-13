@@ -75,6 +75,14 @@ unexported; do not expose it without an agreed definition.
   record. `docs/umfi_comparison.md` — comparison with the reference
   implementation.
 
+## Citation
+
+`CITATION.cff` (Rbuildignored) holds the citation metadata: author from
+DESCRIPTION, the UMFI paper as `preferred-citation`, the Python package under
+`references`. Only verified facts go in it: no affiliation or ORCID has been
+confirmed, and no DOI for the (unsubmitted) SoftwareX paper. Add the DOI only
+once the paper is published.
+
 ## Development environment
 
 R is not on the PATH on this machine. Use the conda environment:
