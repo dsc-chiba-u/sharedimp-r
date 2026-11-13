@@ -1,0 +1,44 @@
+# Only what `remotes::install_local()` needs reaches the image: DESCRIPTION,
+# NAMESPACE, R/, man/, tests/, vignettes/ (not built), inst/ and the smoke test.
+
+# Git / CI / editor
+.git/
+.github/
+.gitignore
+.gitattributes
+*.Rproj
+.Rproj.user/
+.vscode/
+.idea/
+
+# Project documentation that is not part of the package
+docs/
+pkgdown_site/
+_pkgdown.yml
+CLAUDE.md
+README.md
+NEWS.md
+LICENSE.md
+
+# R session / build artifacts
+.Rhistory
+.Rapp.history
+.RData
+.Ruserdata
+*.tar.gz
+*.Rcheck/
+inst/doc/
+doc/
+Meta/
+src/*.o
+src/*.so
+src/*.dll
+
+# Docker itself
+Dockerfile
+.dockerignore
+
+# OS
+.DS_Store
+*~
+*.swp

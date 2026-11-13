@@ -10,3 +10,6 @@
 ^codecov\.yml$
 ^\.lintr$
 ^pkgdown_site$
+^Dockerfile$
+^\.dockerignore$
+^docker$

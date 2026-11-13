@@ -2,6 +2,9 @@
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/dsc-chiba-u/sharedimp-r/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/dsc-chiba-u/sharedimp-r/actions/workflows/R-CMD-check.yaml)
+[![DockerHub/GHCR](https://github.com/dsc-chiba-u/sharedimp-r/actions/workflows/build_test_push.yml/badge.svg)](https://github.com/dsc-chiba-u/sharedimp-r/actions/workflows/build_test_push.yml)
+[![GHCR](https://img.shields.io/badge/ghcr.io-dsc--chiba--u%2Fsharedimp--r-blue?logo=docker)](https://github.com/dsc-chiba-u/sharedimp-r/pkgs/container/sharedimp-r)
+[![Docker Hub](https://img.shields.io/docker/v/koki/sharedimp-r?label=docker%20hub&logo=docker)](https://hub.docker.com/r/koki/sharedimp-r)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
 <!-- badges: end -->
 
@@ -32,6 +35,30 @@ safe and convenient:
 ```r
 # install.packages("pak")
 pak::pak("dsc-chiba-u/sharedimp-r")
+```
+
+### Docker
+
+A ready-to-use image with R, `sharedimp` and its dependencies is published
+from the `main` branch to GitHub Container Registry and Docker Hub. Both
+registries receive the same build; tags are `latest` (last successful build of
+`main`) and the short commit SHA.
+
+```sh
+docker pull ghcr.io/dsc-chiba-u/sharedimp-r:latest   # or koki/sharedimp-r:latest
+docker run --rm -it ghcr.io/dsc-chiba-u/sharedimp-r:latest           # interactive R
+docker run --rm -v "$PWD":/work ghcr.io/dsc-chiba-u/sharedimp-r:latest Rscript analysis.R
+```
+
+The image is based on `rocker/r-ver` (a pinned stable R release) and is
+built by `.github/workflows/build_test_push.yml`; the build installs the
+package, runs its full test suite and a smoke test (`docker/smoke-test.R`)
+inside the image and fails if any of them fails. Pull requests only build and
+test; nothing is pushed. To build locally:
+
+```sh
+docker build -t sharedimp-r .
+docker run --rm sharedimp-r Rscript -e 'library(sharedimp); example(shared_importance)'
 ```
 
 ## Usage

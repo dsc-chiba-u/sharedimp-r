@@ -1,0 +1,129 @@
+# Build the Docker image (which installs the package, runs its test suite and
+# a smoke test), and publish the same build to GHCR and Docker Hub.
+#
+# Policy (mirrors dsc-chiba-u/fbrglm with these refinements):
+# - pull requests: build + test only, nothing is pushed;
+# - push to main (and manual runs on main): push with tags `latest` + short SHA;
+# - tags `vX.Y.Z` (future releases): push `X.Y.Z`, `X.Y` + short SHA, no `latest`;
+# - missing Docker Hub secrets fail early with an explicit message;
+# - one build-push-action call tags both registries, so both receive the
+#   identical image digest.
+name: DockerHub/GHCR
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/sharedimp-r
+  DOCKERHUB_IMAGE: koki/sharedimp-r
+  DOCKER_METADATA_SHORT_SHA_LENGTH: 7
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-test-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Decide whether this run publishes
+        id: publish
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "push=false" >> "$GITHUB_OUTPUT"
+            echo "Pull request: build and test only, no registry push."
+          else
+            echo "push=true" >> "$GITHUB_OUTPUT"
+            echo "Push to ${{ github.ref }}: the image will be published."
+          fi
+
+      - name: Check Docker Hub credentials
+        if: steps.publish.outputs.push == 'true'
+        shell: bash
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          missing=""
+          [ -z "$DOCKER_USERNAME" ] && missing="$missing DOCKER_USERNAME"
+          [ -z "$DOCKER_PASSWORD" ] && missing="$missing DOCKER_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Docker Hub secret(s) not set:$missing. Add them under Settings > Secrets and variables > Actions (repository secrets) so the image can be pushed to ${DOCKERHUB_IMAGE}."
+            exit 1
+          fi
+          echo "Docker Hub credentials present."
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: steps.publish.outputs.push == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        if: steps.publish.outputs.push == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Docker metadata (tags and labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.GHCR_IMAGE }}
+            ${{ env.DOCKERHUB_IMAGE }}
+          # - short commit SHA on every build
+          # - `latest` only on the default branch (main)
+          # - semantic version tags when a `vX.Y.Z` tag is pushed
+          # - `pr-N` for pull requests (built, never pushed)
+          tags: |
+            type=sha,prefix=,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=pr
+          labels: |
+            org.opencontainers.image.title=sharedimp-r
+            org.opencontainers.image.description=R package sharedimp (UMFI-LR shared predictive importance)
+            org.opencontainers.image.licenses=MIT
+
+      - name: Build image (installs the package, runs tests and smoke test); push to GHCR + Docker Hub when publishing
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: ${{ steps.publish.outputs.push == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify the published image from GHCR
+        if: steps.publish.outputs.push == 'true'
+        shell: bash
+        run: |
+          sha_tag="${GITHUB_SHA::7}"
+          docker pull "${GHCR_IMAGE}:${sha_tag}"
+          docker run --rm "${GHCR_IMAGE}:${sha_tag}" \
+            Rscript -e 'suppressPackageStartupMessages(library(sharedimp)); cat("sharedimp", as.character(packageVersion("sharedimp")), "loaded from", R.version.string, "\n")'
+          echo "Published tags:"
+          echo "${{ steps.meta.outputs.tags }}"
