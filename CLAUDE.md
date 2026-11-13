@@ -7,12 +7,16 @@ Feature Importance (UMFI-LR, Janssen, Guan & Robeva, AISTATS 2023) as a
 careful, resampling-based R package built on tidymodels (parsnip /
 rsample / yardstick). It is a companion to the Python package in
 `../sharedimp-py`; both follow `docs/specification.md` (v0.1, reconciled
-2026-11-13), which is the single source of truth for the algorithm,
-inputs, outputs and metric conventions. The goal is that R and Python
-compute the same UMFI-LR quantity; paper benchmarks live in
+2026-11-13, final revision after the Python-side review), which is the
+single source of truth for the algorithm, inputs, outputs and metric
+conventions; the Python repository’s `docs/specification.md` is a
+pointer to it plus Python notes. The goal is that R and Python compute
+the same UMFI-LR quantity; paper benchmarks live in
 `../sharedimp-experiments`, not here. Never edit files in the sibling
 repositories from this one; report differences instead
-(`docs/python_changes.md` lists what Python still has to change).
+(`docs/python_changes.md` records the Python status per item with commit
+SHAs; the Python side’s requests to R are in
+`../sharedimp-py/docs/r_side_changes.md`).
 
 We do not claim a new importance measure. Do not describe the output as
 a causal or conditional effect. Do not add confidence intervals,
@@ -86,10 +90,12 @@ internal and unexported; do not expose it without an agreed definition.
 - `tests/testthat/` — one file per concern; see “Testing”.
 - `docs/STATUS.md` — running work log and TODO list across the three
   repos; read it first when resuming, update it at the end of a session.
-- `docs/specification.md` — common spec. `docs/python_changes.md` — what
-  the Python side must change. `docs/parity/` — cross-language
-  verification record. `docs/umfi_comparison.md` — comparison with the
-  reference implementation.
+- `docs/specification.md` — common spec. `docs/python_changes.md` —
+  Python status per spec item. `docs/parity/rank_deficiency.md` — why
+  rank-deficient OLS designs need a learner with an explicit rank
+  decision in parity tests. `docs/parity/` — cross-language verification
+  record. `docs/umfi_comparison.md` — comparison with the reference
+  implementation.
 
 ## Citation
 
@@ -132,9 +138,10 @@ only; pushes to `main` publish the same build to
 `ghcr.io/dsc-chiba-u/sharedimp-r` and `koki/sharedimp-r` with tags
 `latest` + short SHA via `docker/metadata-action` and one
 `docker/build-push-action` call; `vX.Y.Z` tags publish semver tags
-without `latest`; missing `DOCKER_USERNAME` / `DOCKER_PASSWORD` secrets
-fail the publishing run early with an explicit message; GHCR uses
-`GITHUB_TOKEN`. A manual run with `publish=false`
+without `latest`; manual runs publish only from `main` or a `vX.Y.Z`
+tag; missing `DOCKER_USERNAME` / `DOCKER_PASSWORD` secrets fail the
+publishing run early with an explicit message; GHCR uses `GITHUB_TOKEN`.
+A manual run with `publish=false`
 (`gh workflow run build_test_push.yml -f publish=false`) builds and
 tests only, which validates the Dockerfile in CI without registry
 credentials. Docker is not usable from the sandbox on this machine (snap
@@ -158,6 +165,9 @@ successful without seeing the workflow succeed.
   never hard-code a sign for a named metric elsewhere. `r2` means
   `rsq_trad` (1 − SS_res/SS_tot), `rsq` means squared Pearson
   correlation; keep them distinct.
+- Do not claim that arbitrary learners give identical predictions across
+  languages on rank-deficient designs; parity tests on such designs use
+  an OLS learner with an explicit rank decision (`lm.fit` in R).
 - Learner failures on a split produce `NA` for that split plus a
   warning, not an abort (unless `on_error = "error"`).
 - Dependencies: Imports are parsnip, rsample, yardstick, ranger, rlang,
