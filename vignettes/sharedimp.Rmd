@@ -88,13 +88,17 @@ res_rf <- shared_importance(x, y, v = 5, seed = 1)
 res_rf$importance
 ```
 
-Metrics come from `yardstick`. The direction attribute of the metric decides
-the sign convention, so a metric to maximize (`"rsq"`, `"accuracy"`,
-`"roc_auc"`) and a metric to minimize (`"mse"`, `"rmse"`, `"mae"`,
-`"mn_log_loss"`) both yield positive importance when the anchor helps.
+Metrics come from `yardstick`. Scores are always reported oriented so that
+greater is better: the metric itself for a metric to maximize (`"r2"`,
+`"accuracy"`, `"roc_auc"`) and its negative for a metric to minimize
+(`"mse"`, `"rmse"`, `"mae"`, `"log_loss"`). Importance is
+`score_full - score_reduced` in both cases, so it is positive whenever the
+anchor helps. (`"r2"` is `1 - SS_res / SS_tot`, the scikit-learn `r2`;
+yardstick's squared-correlation `"rsq"` is also available but is a different
+quantity.)
 
-```{r rsq}
-shared_importance(x, y, learner = "linear", metric = "rsq", v = 5, seed = 1)$importance
+```{r r2}
+shared_importance(x, y, learner = "linear", metric = "r2", v = 5, seed = 1)$importance
 ```
 
 ## Classification
@@ -104,12 +108,12 @@ the event level for probability metrics, and folds are stratified by `y`.
 
 ```{r classification}
 yb <- factor(ifelse(y > median(y), "high", "low"), levels = c("high", "low"))
-res_b <- shared_importance(x, yb, learner = "linear", metric = "mn_log_loss", v = 5, seed = 1)
+res_b <- shared_importance(x, yb, learner = "linear", metric = "log_loss", v = 5, seed = 1)
 res_b$importance
 ```
 
 Multiclass responses work the same way; `"roc_auc"` then uses the Hand-Till
-estimator and `"mn_log_loss"` the multinomial log loss.
+estimator and `"log_loss"` the multinomial log loss.
 
 ## Reproducibility and explicit folds
 
@@ -129,18 +133,15 @@ res_fixed$resampling
 
 The values are out-of-sample predictive gains for a given learner, metric
 and resampling scheme. They are not causal effects, not conditional effects,
-and not regression coefficients. The `sd` column is the dispersion of the
-fold-level values and is purely descriptive; the package deliberately
-provides no confidence intervals or p-values.
+and not regression coefficients. The `importance_std` column is the
+dispersion of the split-level values and is purely descriptive; the package
+deliberately provides no confidence intervals or p-values.
 
-The optional `direction = TRUE` diagnostic reports the correlation between
-the anchor and the difference between the full and reduced predictions on
-the assessment rows. It summarises whether the anchor's contribution to the
-prediction increases or decreases with the anchor's value and nothing more.
-
-```{r direction}
-shared_importance(x, y, learner = "linear", v = 5, seed = 1, direction = TRUE)$importance
-```
+The output tables use the column names shared with the Python package
+(`feature`, `importance`, `importance_std`, `score_full`, `score_reduced`,
+`n_splits`; per split additionally `split`, `n_train`, `n_test`). With a
+deterministic learner and explicit splits the two packages produce the same
+numbers.
 
 ## Relation to the reference UMFI implementation
 

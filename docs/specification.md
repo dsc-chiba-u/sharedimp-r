@@ -1,15 +1,13 @@
-# sharedimp — shared algorithm specification (R / Python)
+# sharedimp — common algorithm specification (R / Python)
 
-Status: v0.1 draft, 2026-11-12. This document is the single source of truth for
-the R package `sharedimp` (this repository) and the Python package `sharedimp`
-(`../sharedimp-py`). Both implementations must follow it; any intentional
-deviation must be recorded in the "Implementation notes" section of the
-deviating repository.
-
-At the time of writing `sharedimp-py` contains only a README and a LICENSE, so
-no pre-existing Python specification could be consulted. If the Python side
-later adopts different conventions, this file must be updated and the
-difference reported, not silently absorbed.
+Status: **v0.1, reconciled 2026-11-13.** This document is the single source of
+truth for the R package `sharedimp` (this repository) and the Python package
+`sharedimp` (`../sharedimp-py`). It supersedes the provisional Python-side
+specification (`sharedimp-py/docs/specification.md`, `0.1-provisional`), whose
+open items (its §9) are settled here. Both implementations must follow this
+document; any intentional deviation must be recorded in the deviating
+repository, never absorbed silently. Section 16 lists the changes the Python
+package still has to make; the R package implements everything below.
 
 ## 1. Scope and non-claims
 
@@ -19,7 +17,7 @@ Janssen, Guan & Robeva, AISTATS 2023, PMLR 206). We do not claim a new feature
 importance measure. The contribution is engineering: fold-internal
 residualization, paired out-of-sample evaluation, learner/metric adapters for
 modern ML workflows (tidymodels in R, scikit-learn in Python), reproducible
-random state, and a result object that exposes per-fold results.
+random state, and a result object that exposes per-split results.
 
 The reported numbers are *predictive* importances: how much out-of-sample
 predictive performance is gained by keeping the anchor feature next to a
@@ -27,59 +25,66 @@ representation of the other features from which its linear component has been
 removed. They are not causal effects, not conditional effects, and no
 confidence intervals, p-values, or other formal inference are provided.
 
+Out of scope for v0.1: inference of any kind, optimal-transport dependence
+removal (UMFI-OT), hyperparameter tuning, non-numeric features, missing values,
+and the direction diagnostic (Section 13).
+
 ## 2. Notation
 
 - `n` observations, `p` numeric predictors `X` (n × p), response `y`.
 - `i` is the *anchor* feature (the feature whose importance is being
   computed); `-i` denotes the remaining `p − 1` features.
-- A *fold* `f` is a pair (training index set `T_f`, assessment index set
-  `A_f`) with `T_f ∩ A_f = ∅`.
-- `ν` (nu) is an evaluation metric computed on assessment predictions.
+- A *split* `s` is a pair (training index set `T_s`, assessment index set
+  `A_s`) with `T_s ∩ A_s = ∅`. "Fold" is used as a synonym.
+- `ν` (nu) is an evaluation metric; `score` is `ν` oriented so that greater is
+  better (Section 9).
 
 ## 3. Inputs
 
 | Input | Requirement |
 |---|---|
-| `x` | numeric matrix or data frame whose columns are all numeric (integer/double); `p ≥ 1`; column names required (data frame) or generated as `V1..Vp` (unnamed matrix). Logical columns are coerced to 0/1 with a message. Factor/character columns are an error (encode them yourself). |
-| `y` | regression: numeric vector; classification: factor (R) / categorical (Python) with `K ≥ 2` levels. Character `y` is coerced to a factor with levels in sorted order. Level order is preserved and is significant (first level is the event level for binary probability metrics). |
-| `task` | `"auto"` (default; numeric `y` → regression, factor `y` → classification), `"regression"`, `"classification"`. |
+| `x` / `X` | numeric matrix or data frame whose columns are all numeric (integer/double; logical/boolean coerced to 0/1); `p ≥ 1`; no missing or non-finite values; unique column names. Factor/character columns are an error (encode them yourself). Unnamed matrices get language-default names (R: `V1..Vp`; Python: `x0..x{p-1}`); parity tests therefore use named columns. |
+| `y` | regression: numeric vector; classification: factor (R) / categorical labels (Python) with `K ≥ 2` levels. Character `y` is coerced to a factor with levels in sorted order. Level order is preserved and is significant for the column order of probability matrices. |
+| `task` | R: `"auto"` (default; numeric `y` → regression, factor `y` → classification), `"regression"`, `"classification"`. Python: taken from the estimator (`is_classifier`). |
 | missing values | not allowed in `x` or `y`; the caller must impute or drop first. |
 
-Rows of `x` and `y` are aligned by position.
+Rows of `x` and `y` are aligned by position. `n ≥ 2`.
+
+**Single predictor (`p = 1`).** Allowed. The reduced representation then has
+zero columns and the reduced model is the null model of Section 8.3. The
+importance is the out-of-sample gain of the learner over the null model.
+(Python currently rejects `p = 1`; see Section 16.)
 
 ## 4. Resampling
 
-Default: `v`-fold cross-validation with `v = 5`, `repeats = 1`, produced by the
-host language's standard tool (R: `rsample::vfold_cv()`; Python:
-`sklearn.model_selection.KFold` / `StratifiedKFold`). For classification the
-folds are stratified by `y`. The same folds are used for every anchor feature,
-and for the full and reduced models within an anchor, so the comparison is
-paired.
+Default: `v`-fold cross-validation with `v = 5`, one repeat, produced by the
+host language's standard tool (R: `rsample::vfold_cv()`; Python: shuffled
+`KFold` / `StratifiedKFold`). For classification the folds are stratified by
+`y`. The same splits are used for every anchor feature, and for the full and
+reduced models within an anchor, so the comparison is paired.
 
-Both implementations must also accept an explicit fold assignment supplied by
-the caller (R: an `rset` object or an integer vector of fold labels of length
-`n`; Python: an iterable of (train_idx, test_idx) pairs or an integer vector).
-Explicit folds are the mechanism for cross-language equality tests, because the
-two languages' random fold generators differ.
+Both implementations also accept explicit splits supplied by the caller (R: an
+`rset` object or a vector of fold labels of length `n`; Python: a scikit-learn
+splitter or an iterable of `(train_idx, test_idx)` pairs). Explicit splits are
+the mechanism for cross-language equality tests, because the two languages'
+random fold generators differ.
 
-Every assessment fold must contain at least one observation; every training
-fold must contain at least two observations. For classification, a training
-fold must contain at least two classes; otherwise the fold is treated as a
-learner failure (Section 9).
+Every assessment set must contain at least one observation; every training set
+at least two. For classification, a training set with a single class is a
+learner failure for that split (Section 10).
 
 ## 5. Fold-internal residualization (the UMFI-LR preprocessing)
 
-For a fold `f` and anchor `i`, and each `j ≠ i`, fit by ordinary least squares
+For a split `s` and anchor `i`, and each `j ≠ i`, fit by ordinary least squares
 on the **training rows only**:
 
 ```
-X_j = a_j + b_j X_i + e_j          (rows in T_f)
-b_j = Cov_T(X_i, X_j) / Var_T(X_i)
+X_j = a_j + b_j X_i + e_j          (rows in T_s)
+b_j = S_ij / S_ii                  S_ij = Σ_T (X_i − mean_T X_i)(X_j − mean_T X_j)
 a_j = mean_T(X_j) − b_j · mean_T(X_i)
 ```
 
-where `Cov_T`, `Var_T`, `mean_T` are computed over `T_f` (any consistent
-normalisation; `b_j` does not depend on it). Then the residualized feature is
+Then the residualized feature is
 
 ```
 R_j = X_j − a_j − b_j X_i
@@ -88,41 +93,44 @@ R_j = X_j − a_j − b_j X_i
 applied with the **same** `(a_j, b_j)` to the training rows and to the
 assessment rows. Assessment rows never enter the computation of `(a_j, b_j)`.
 
-Constant-anchor rule: if `X_i` is constant on `T_f` (see Section 7 for the
-test) then `b_j = 0` and `a_j = mean_T(X_j)` for all `j`, and the implementation
-emits a warning naming the anchor. No noise is injected.
-
 Unlike the reference implementation we always residualize: there is no p-value
-gate on `b_j` (see Section 12).
+or R² gate on `b_j` (Section 12).
+
+### 5.1 Degenerate cases (deterministic rules, computed on `T_s` only)
+
+| Case | Rule |
+|---|---|
+| Anchor constant: `S_ii = 0` (exactly) | `b_j = 0`, `a_j = mean_T(X_j)` for all `j` (the other columns are only centred). A warning names the anchor. |
+| `X_j` constant: `S_jj = 0` | `b_j = 0`, `a_j = mean_T(X_j)`; `R_j = X_j − mean_T(X_j)` (zero up to floating point on the training rows). Not flagged as collinear. |
+| `X_j` exactly collinear with the anchor: `S_jj > 0` and `SS_res_j ≤ tol · S_jj`, `tol = 1e-10`, where `SS_res_j = Σ_T (X_j − a_j − b_j X_i)²` | `R_j` is set to **exactly 0** for training and assessment rows, so that floating-point round-off of the residual cannot carry the anchor into the reduced representation. The column is **kept**. |
+
+`tol = 1e-10` is the only numerical tolerance in the algorithm. No random noise
+is ever injected and no column is ever dropped; the representations always have
+exactly `p` and `p − 1` columns.
+
+Rationale for keeping (not dropping) collinear columns, and the learner study
+behind it, are in Section 15.3.
 
 ## 6. Full and reduced representations
 
 ```
-Full_i    = [ X_i , R_{-i} ]     (p columns; X_i is the raw, un-centred anchor)
-Reduced_i = [ R_{-i} ]           (p − 1 columns)
+Full_i    = X with every column j ≠ i replaced by R_j; column i is the raw X_i   (p columns)
+Reduced_i = Full_i without column i                                             (p − 1 columns)
 ```
 
-Column order: anchor first, then the residualized columns in original order.
-Column names: the anchor keeps its name; residualized columns keep their
-original names (they are representations of those columns, not new features).
-
-Columns of `R_{-i}` that are constant on the training rows (e.g. the residual
-of an exact duplicate of the anchor) are dropped from **both** `Full_i` and
-`Reduced_i` using the training-fold test only. The anchor column itself is
-never dropped.
+**Column order:** the original order of `X` in both; the anchor stays in its
+original position in `Full_i`. Column names are kept (residualized columns are
+representations of those columns, not new features). Importance must not
+depend on the column order of `X`, and this is tested.
 
 If `p = 1`, `Reduced_i` has zero columns and the learner is replaced by the
 null model (Section 8.3).
 
-## 7. Constant-column test
+## 7. (Reserved)
 
-A vector `v` is treated as constant when
-
-```
-max(v) − min(v) <= 1e-10 * max(1, max(|v|))
-```
-
-This is the only numerical tolerance in the algorithm.
+The former tolerant constant-column test was replaced by the exact rules of
+Section 5.1 and this section number is kept so that references in both
+code bases stay valid.
 
 ## 8. Learners
 
@@ -135,26 +143,30 @@ where `prediction` is a numeric vector (regression) or an `n × K` matrix of
 class probabilities with columns in the level order of `y` (classification).
 Predicted class labels are **always** derived as the argmax of the probability
 matrix (ties → first level); the learner's own class prediction, if any, is
-ignored. Rows with NA predictions are a learner failure. If a level of `y` is
-absent from a training fold (but at least two levels are present), the
-learner is fitted on the levels present and the missing level receives
-probability 0 in the output matrix.
+ignored. Non-finite predictions are a learner failure. If a level of `y` is
+absent from a training set (but at least two levels are present), the learner
+is fitted on the levels present and the missing level receives probability 0.
 
 Hyperparameters are fixed: no tuning is performed inside `shared_importance()`.
 
-### 8.1 Built-in learner `"linear"`
+### 8.1 Built-in learner `"linear"` (R) / reference estimators (Python)
 
 | task | model |
 |---|---|
-| regression | ordinary least squares (R: `stats::lm` via `parsnip::linear_reg()`; Python: `sklearn.linear_model.LinearRegression`) |
-| binary | unpenalized logistic regression (R: `stats::glm` binomial via `parsnip::logistic_reg()`; Python: `LogisticRegression(penalty=None)`) |
-| multiclass | unpenalized multinomial logistic regression (R: `nnet::multinom` called directly with `maxit = 500`, because the `parsnip::multinom_reg()`/nnet pairing mis-formats probabilities when a training fold holds only two levels; Python: `LogisticRegression(penalty=None, multi_class="multinomial")`) |
+| regression | ordinary least squares (R: `stats::lm.fit()` on `[1, X]`; Python: `sklearn.linear_model.LinearRegression`) |
+| binary | unpenalized logistic regression (R: `stats::glm.fit()` binomial, event = first level; Python: `LogisticRegression(penalty=None)`) |
+| multiclass | unpenalized multinomial logistic regression (R: `nnet::multinom(maxit = 500)`; Python: `LogisticRegression(penalty=None)` multinomial) |
 
-Rank deficiency in OLS: aliased coefficients are set to zero (R's `lm`
-convention) so predictions remain finite. Non-convergence or separation is a
-learner failure only if it produces non-finite predictions.
+Rank deficiency: aliased OLS/logistic coefficients are set to zero so that
+predictions remain finite. For an exactly-zero column (Section 5.1) this
+coincides with scikit-learn's minimum-norm least squares solution (coefficient
+0), which is why the parity fixture with a duplicated column agrees
+(Section 15.1). For other rank-deficient designs the two conventions may
+differ in the coefficients but not in the fitted values, so scores agree.
+Non-convergence or separation is a learner failure only if it produces
+non-finite predictions.
 
-### 8.2 Built-in learner `"rand_forest"` (default)
+### 8.2 Built-in learner `"rand_forest"` (R default)
 
 Random forest with fixed hyperparameters shared across languages:
 
@@ -163,13 +175,15 @@ Random forest with fixed hyperparameters shared across languages:
 | trees | 500 |
 | mtry / max_features | `floor(sqrt(q))`, `q` = number of representation columns |
 | min_n / min_samples_leaf | 5 |
-| classification output | class probabilities (R: `ranger(probability = TRUE)`; Python: `predict_proba`) |
+| classification output | class probabilities |
 | bootstrap | yes, sample fraction 1 |
 
 R engine: `ranger` through `parsnip::rand_forest()`. Python: scikit-learn
 `RandomForestRegressor` / `RandomForestClassifier`. Forest implementations
 differ between languages; cross-language equality is **not** expected for this
-learner, only qualitative agreement.
+learner, only qualitative agreement. Note that an exactly-zero column occupies
+one of the `mtry` candidate slots at every split; both languages are affected
+identically (Section 15.3).
 
 ### 8.3 Null model
 
@@ -182,76 +196,142 @@ probabilities (class = most frequent; ties → first level).
 R: any `parsnip` model specification with a mode matching the task, or a
 `sharedimp_learner` object built from a `fit` and a `predict` function.
 Python: any scikit-learn compatible estimator (`fit`, `predict`,
-`predict_proba`). The adapter translates to Section 8's contract.
+`predict_proba`). The adapter translates to this section's contract.
 
-## 9. Metrics and the sign of importance
+## 9. Metrics, scores and the sign of importance
 
-A metric `ν` has a `direction` ∈ {`maximize`, `minimize`}. Let
-`s = +1` if `maximize`, `s = −1` if `minimize`. For fold `f` and anchor `i`:
-
-```
-imp_{i,f} = s · ( ν(y_A, pred_full_{i,f}) − ν(y_A, pred_reduced_{i,f}) )
-```
-
-so `imp > 0` always means "keeping the anchor predicts better out of sample".
-Negative values are **kept**, never truncated or floored. Metrics are evaluated
-per assessment fold, never on pooled predictions.
-
-Built-in metric names and definitions (R: yardstick; Python: scikit-learn):
-
-| name | task | direction | definition |
-|---|---|---|---|
-| `mse` (default, regression) | regression | minimize | mean squared error |
-| `rmse` | regression | minimize | sqrt(mse) |
-| `mae` | regression | minimize | mean absolute error |
-| `rsq` | regression | maximize | squared Pearson correlation between truth and estimate (yardstick `rsq`); Python must use the same definition, **not** `r2_score` |
-| `mn_log_loss` (default, classification) | classification | minimize | mean multinomial log loss, probabilities clipped to `[1e-15, 1 − 1e-15]` |
-| `accuracy` | classification | maximize | fraction of correct argmax labels |
-| `roc_auc` | classification | maximize | binary: AUC with the **first** level as the event; multiclass: Hand & Till (2001) average of pairwise AUCs (yardstick `hand_till`) |
-
-R additionally accepts any yardstick metric function; Python any callable with
-a declared direction.
-
-### 9.1 Aggregation
+A metric `ν` has a `direction` ∈ {`maximize`, `minimize`}. Its **score** is
 
 ```
-importance_i = mean_f imp_{i,f}          over folds with a successful fit
-sd_i         = sd_f   imp_{i,f}          (sample sd; NA if < 2 folds)
-n_folds_i    = number of successful folds
+score = ν            if direction = maximize
+score = −ν           if direction = minimize
 ```
 
-`sd` is a descriptive dispersion of fold-level values. It is not a standard
-error and must not be presented as inference.
+so that greater is always better. This is exactly the scikit-learn scorer
+convention (`neg_mean_squared_error`, `neg_log_loss`, ...); in R the
+orientation is taken from the yardstick `direction` attribute. For split `s`
+and anchor `i`:
+
+```
+score_full[s,i]    = score(y_A, pred_full)
+score_reduced[s,i] = score(y_A, pred_reduced)
+importance[s,i]    = score_full[s,i] − score_reduced[s,i]
+```
+
+so `importance > 0` always means "keeping the anchor predicts better out of
+sample". Negative values are **kept**, never truncated or floored. Scores are
+not truncated either. Metrics are evaluated per assessment set, never on
+pooled predictions. Both `score_*` columns are reported in this oriented form
+in both languages, so every column of both output tables is comparable.
+
+### 9.1 Common metric names and their exact definitions
+
+Checked numerically on 2026-11-13 with yardstick 1.4.0 and scikit-learn 1.9.1
+on identical inputs (Section 15.2): every pair below agrees to ≤ 3e-15.
+
+| common name | task | direction | definition | R (yardstick) | Python (scikit-learn scorer) |
+|---|---|---|---|---|---|
+| `mse` (R default, regression) | regression | minimize | mean squared error | `sharedimp::mse` | `neg_mean_squared_error` |
+| `rmse` | regression | minimize | sqrt(mse) | `rmse` | `neg_root_mean_squared_error` |
+| `mae` | regression | minimize | mean absolute error | `mae` | `neg_mean_absolute_error` |
+| `r2` | regression | maximize | `1 − SS_res / SS_tot` (coefficient of determination) | `rsq_trad` | `r2` |
+| `rsq` | regression | maximize | squared Pearson correlation of truth and estimate | `rsq` | none built in; `make_scorer(lambda y, p: np.corrcoef(y, p)[0, 1]**2)` |
+| `log_loss` (R default, classification) | classification | minimize | mean of `−log p_true`, probabilities clipped to `[ε, 1 − ε]` with `ε = 2^−52` (machine epsilon) | `mn_log_loss` | `neg_log_loss` (scikit-learn ≥ 1.5 clips at machine epsilon; earlier versions used `1e-15`) |
+| `accuracy` | classification | maximize | fraction of correct argmax labels | `accuracy` | `accuracy` |
+| `roc_auc` | binary | maximize | Mann–Whitney AUC (ties count ½) | `roc_auc` (event = first level) | `roc_auc` (positive = second sorted class). Identical value: swapping the event class and its probability column leaves the AUC unchanged |
+| `roc_auc` | multiclass | maximize | Hand & Till (2001): mean over class pairs of ½(A(i\|j) + A(j\|i)) | `roc_auc` (`hand_till`, the default) | `roc_auc_ovo` with `average="macro"`. **Not** `roc_auc_ovr` (one-vs-rest differs) |
+
+Important distinctions:
+
+- `r2` ≠ `rsq`. yardstick's `rsq` is the squared Pearson correlation, which
+  ignores bias and scale; `rsq_trad` / scikit-learn `r2_score` is the usual
+  coefficient of determination. The common name `r2` means the latter. R
+  accepts `"rsq_trad"` and `"mn_log_loss"` as aliases of `"r2"` and
+  `"log_loss"`.
+- Binary probability metrics never depend on which level is called the event
+  as long as the matching probability column is used; R uses the first level,
+  scikit-learn the second sorted class.
+- **Default metric.** R: `mse` (regression), `log_loss` (classification).
+  Python currently defaults to `estimator.score` (R² / accuracy). Parity tests
+  must pass the metric explicitly; Section 16 asks Python to adopt the R
+  defaults.
+
+R additionally accepts any yardstick metric function; Python any scikit-learn
+scorer name or callable.
+
+### 9.2 Aggregation
+
+Over the splits whose fit succeeded (Section 10):
+
+```
+importance_i      = mean_s importance[s,i]
+importance_std_i  = sd_s   importance[s,i]      (sample sd, denominator n − 1; NA with one split)
+score_full_i      = mean_s score_full[s,i]
+score_reduced_i   = mean_s score_reduced[s,i]
+n_splits_i        = number of splits with a successful fit
+```
+
+Unweighted arithmetic mean over all splits including repeats; not pooled
+predictions, not weighted by assessment size. `importance_std` is a
+descriptive dispersion of split-level values. It is not a standard error and
+must not be presented as inference.
 
 ## 10. Learner failures
 
 If fitting or predicting fails (error, or non-finite predictions, or a training
-fold with a single class) for a fold `f` and anchor `i`:
+set with a single class) for split `s` and anchor `i`:
 
-- the fold result is recorded with `imp_{i,f} = NA`, the metric values `NA`, and
-  the error message in a `error` column;
-- a warning is emitted summarising how many (anchor, fold) pairs failed;
-- aggregation uses the remaining folds; if no fold succeeds, `importance_i` is
-  `NA`.
+- the split row is recorded with `score_full`, `score_reduced` and
+  `importance` equal to `NA`, and the error message in the `error` column (R);
+- a warning is emitted summarising how many (feature, split) pairs failed;
+- aggregation uses the remaining splits; if no split succeeds, the feature's
+  summary values are `NA` and `n_splits = 0`.
 
-With `on_error = "error"` the first failure aborts the whole computation.
+R: `on_error = "error"` aborts at the first failure instead. Python currently
+propagates the exception (Section 16).
 
 ## 11. Output schema
 
 `shared_importance()` returns an object (R: class `sharedimp_result`; Python:
-`SharedImportanceResult`) with at least:
+`SharedImportanceResult`) holding two tables with **common column names**.
 
-| field | content |
-|---|---|
-| `importance` | table with columns `feature` (chr), `importance` (dbl), `sd` (dbl), `n_folds` (int), plus `direction` (dbl) when the diagnostic was requested; one row per anchor, in the order of `features` (default: input column order) |
-| `folds` | table with columns `feature`, `id` (fold label), `id2` (repeat label, or `NA`), `metric_full`, `metric_reduced`, `importance`, `error` (chr or NA), plus `direction` when requested; rows ordered anchor-major, fold-minor |
-| `metric` | metric name and direction |
-| `task` | `"regression"` or `"classification"` |
-| `learner` | human-readable learner description |
-| `direction` | `NULL`, or a table `feature`, `direction`, `sd`, `n_folds` (Section 13) |
-| `n`, `p`, `v`, `repeats`, `seed`, `levels`, `resampling` (human-readable description of the folds), `call` | bookkeeping |
+### 11.1 Summary table — one row per evaluated anchor (R: `$importance`; Python: `.importances`)
 
-The `importance` table is the headline output; `folds` is always retained.
+| column | type | meaning |
+|---|---|---|
+| `feature` | label | feature name |
+| `importance` | double | mean over splits of `score_full − score_reduced` |
+| `importance_std` | double | sample sd of the per-split importances; `NA` with one split; descriptive only |
+| `score_full` | double | mean full score over splits |
+| `score_reduced` | double | mean reduced score over splits |
+| `n_splits` | integer | number of splits that contributed (all splits when no fit failed) |
+
+Row order: the order of `features` (default: input column order); never
+sorted by importance.
+
+### 11.2 Per-split table — one row per (split, anchor) (R: `fold_results()` / `$folds`; Python: `.fold_results`)
+
+Common columns, in this order:
+
+| column | type | meaning |
+|---|---|---|
+| `feature` | label | anchor feature |
+| `split` | integer | index of the split in generation order (R: 1-based; Python: 0-based) |
+| `n_train`, `n_test` | integer | sizes of `T_s` and `A_s` |
+| `score_full`, `score_reduced` | double | oriented scores on `A_s` |
+| `importance` | double | `score_full − score_reduced` |
+
+Rows are ordered by `split`, then by feature in `features` order. Parity tests
+compare rows by position, not by the `split` label. Implementations may append
+language-specific columns **after** the common ones; R appends `id`, `id2`
+(`rsample` labels) and `error` (message or `NA`).
+
+### 11.3 Metadata
+
+Metric name and direction, task, learner description, `n`, `p`, number of
+splits, seed, class levels, and a textual description of the resampling
+scheme. Names are language-idiomatic (R: `metric`, `task`, `learner`, `n`,
+`p`, `v`, `repeats`, `seed`, `levels`, `resampling`, `call`).
 
 ## 12. Differences from the reference UMFI-LR implementation
 
@@ -261,14 +341,14 @@ both inspected on 2026-11-12.
 
 | aspect | reference UMFI-LR | sharedimp | why |
 |---|---|---|---|
-| where residualization is fit | whole data set | training fold only; coefficients applied to assessment rows | avoid leaking assessment rows into the representation |
-| evaluation | ranger out-of-bag R² / accuracy on the whole data (Python: `oob_score_`) | paired per-fold assessment metrics | explicit, learner-agnostic out-of-sample evaluation; OOB is forest-specific |
+| where residualization is fit | whole data set | training split only; coefficients applied to assessment rows | avoid leaking assessment rows into the representation |
+| evaluation | ranger out-of-bag R² / accuracy on the whole data (Python: `oob_score_`) | paired per-split assessment scores | explicit, learner-agnostic out-of-sample evaluation; OOB is forest-specific |
 | residualize or not | only if slope p-value < 0.01 (R) / in-sample R² > 0.01 (Python); otherwise raw `X_j` kept | always residualize | a data-dependent gate makes the representation discontinuous and differs between the two reference implementations |
 | negative importance | `max(score, 0)` floors (0.5 for classification accuracy) and `fi[fi < 0] <- 0` | kept as is | negatives are informative (noise features, overfitting) and truncation biases averages |
-| constant / near-constant columns | Gaussian noise injected | constant anchor → slope 0 with warning; constant residual columns dropped | determinism |
+| constant / collinear columns | Gaussian noise injected | constant anchor → slope 0 with warning; exactly collinear columns → residual fixed at 0, column kept | determinism; identical column count for every anchor |
 | learner | ranger, 100 trees, defaults; Python: ExtraTrees by default | any learner; built-in RF with 500 trees, `min_n = 5`; built-in linear | fixed, documented hyperparameters |
-| metric | R² (regression), accuracy (classification) | configurable; defaults MSE / log loss | smooth, decomposable defaults; R² and accuracy still available |
-| random state | not controlled | `seed` argument; explicit folds accepted | reproducibility |
+| metric | R² (regression), accuracy (classification) | configurable; R defaults MSE / log loss | smooth, decomposable defaults; R² and accuracy still available |
+| random state | not controlled | `seed` / `random_state`; explicit splits accepted | reproducibility |
 
 Because of these differences, numerical identity with the reference
 implementation is **not** expected. What *is* tested (see
@@ -276,29 +356,145 @@ implementation is **not** expected. What *is* tested (see
 to `lm(X_j ~ X_i)` on the same rows when the gate would have fired; (b) on
 deterministic synthetic data with a clear ground truth, the rankings agree.
 
-## 13. Optional direction diagnostic (implemented after the core)
+## 13. Direction diagnostic — removed from the v0.1 API
 
-For regression and binary classification, `direction = TRUE` additionally
-reports, per anchor,
+The two drafts defined different quantities:
 
-```
-dir_{i,f} = cor( X_i[A_f] , pred_full_{i,f} − pred_reduced_{i,f} )
-```
+- R draft: Pearson correlation, over assessment rows, between `X_i` and
+  `pred_full − pred_reduced`.
+- Python draft: Spearman rank correlation, over assessment rows, between `X_i`
+  and the Full model's prediction (probability of the second class level for
+  binary targets).
 
-(for binary classification the predictions are the probabilities of the first
-level), averaged over folds. It is a descriptive summary of whether the
-anchor's contribution to the prediction increases or decreases with the
-anchor's value. It is **not** a regression coefficient, not a conditional
-effect, and not a causal effect, and it is `NA` for multiclass tasks and when
-`X_i` or the prediction difference is constant on the assessment fold.
+These are not the same statistic, so the diagnostic is **not part of the v0.1
+common API**: it is not an argument of `shared_importance()` in either
+language and not a column of either output table. Existing code may be kept
+internally, marked experimental and unreachable from the public API (R keeps
+an unexported `compute_direction()`). If a direction diagnostic is adopted
+later, its statistical definition will be agreed first and it will be
+described as a descriptive summary of a fitted model, never as a causal,
+conditional or regression effect.
 
 ## 14. Reproducibility
 
-- `seed`: when non-`NULL`, the whole computation (fold generation and any
-  stochastic learner) runs under a local RNG state seeded with `seed`; the
-  caller's RNG state is restored afterwards. R: `set.seed(seed)` with the
-  default generators; Python: `numpy.random.default_rng(seed)` /
-  `random_state=seed`.
-- Given identical folds, the `"linear"` learner and any built-in metric must
-  give identical results (to floating-point tolerance) across the two
-  languages. This is the cross-language acceptance test.
+- `seed` (R) / `random_state` (Python): when set, split generation and any
+  stochastic learner run under a local RNG state seeded with it; R restores the
+  caller's RNG state afterwards. The full and reduced models of a pair receive
+  the same seed where the learner is stochastic.
+- Bitwise equality between R and Python is **not** expected for stochastic
+  learners or randomly generated splits (different RNGs). Cross-language parity
+  is defined for deterministic learners on explicit splits: given identical
+  splits, the `"linear"` learner / `LinearRegression` and any common metric
+  must give identical results to about `1e-8` in every column of both tables
+  (Section 15.1 achieves `1e-13`).
+
+## 15. Cross-language verification record (2026-11-13)
+
+Run against `sharedimp-py` at commit `bfcb2a5` (scikit-learn 1.9.1, numpy as
+installed in its virtual environment; the Python code was only executed, not
+modified) and this R package with yardstick 1.4.0. R expectations: `tests/testthat/test-common-spec.R` and
+`tests/testthat/test-metric-definitions.R`. Comparison script, its output and
+the learner study: `docs/parity/`.
+
+### 15.1 Parity fixture (deterministic, no RNG)
+
+```
+i  = 1, ..., 12
+x1 = i
+x2 = (i mod 4) + 0.5 i
+x3 = 2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11
+y  = 2 x1 − x2 + 0.5 x3 + (0.3, −0.2, 0.1, 0.4, −0.5, 0.2, −0.1, 0.3, −0.4, 0.1, 0.2, −0.3)
+   = 1.8, 1.3, 3.6, 7.9, 9.0, 9.7, 11.4, 15.8, 17.1, 17.6, 19.7, 23.2
+splits: row i is assessed in split ((i − 1) mod 3) + 1   (3 splits, 8 train / 4 test each)
+learner: OLS with intercept; metric: mse (score = −mse)
+```
+
+Expected summary table (R, `learner = "linear"`, `metric = "mse"`):
+
+| feature | importance | importance_std | score_full | score_reduced | n_splits |
+|---|---|---|---|---|---|
+| x1 | 48.3228798721808 | 6.17147177856012 | −0.276470061784757 | −48.5993499339656 | 3 |
+| x2 | 34.4600258422062 | 29.5939201894648 | −0.276470061784757 | −34.7364959039909 | 3 |
+| x3 | 45.5507348310811 | 22.4063405773906 | −0.276470061784757 | −45.8272048928659 | 3 |
+
+Per-split importances (split 1, 2, 3): x1 53.5652538573545, 49.8820278139317,
+41.5213579452562; x2 61.4017818839248, 39.1937200003847, 2.78457564230898;
+x3 36.9725234594595, 70.9787812500000, 28.7008997837838.
+
+Python (`LinearRegression()`, `scoring="neg_mean_squared_error"`, the same
+splits as an explicit `cv` list) reproduced every column: maximum absolute
+difference 4.3e-14 (summary table) and 6.8e-14 (per-split table); `n_splits`,
+`n_train`, `n_test` identical. A variant with an added exactly collinear
+column `x1_dup = 3 x1 − 2` (exercising the zero-residual rule in both
+languages) also agreed to 2.9e-14, with `x1_dup` receiving the same importance
+as `x1`.
+
+### 15.2 Metric definitions
+
+On one random data set (n = 40) the R and Python values of every common metric
+agreed to ≤ 3e-15: mse, rmse, mae, r2 (`rsq_trad` vs `r2_score`), rsq
+(`rsq` vs `corrcoef²`), binary log loss (including a clipped zero probability),
+binary accuracy, binary AUC (first-level event in R vs second-class positive
+in scikit-learn), multiclass log loss, multiclass accuracy, and multiclass AUC
+(`hand_till` vs `multi_class="ovo", average="macro"`). scikit-learn's
+`multi_class="ovr"` gave a different value (0.4624 vs 0.4679) and must not be
+used as the counterpart of `roc_auc`.
+
+### 15.3 Zero columns and learners (basis for the collinearity rule)
+
+The Python draft fixed collinear residuals at zero; the R draft dropped them.
+Before adopting the zero rule, R learners were run with and without an added
+exactly-zero column (n = 120, 90/30 split), in a "zero column only"
+representation (the reduced representation of a duplicated pair with `p = 2`)
+and in a "zero column plus one real column" representation:
+
+| learner | predictions with vs without zero column | zero column only | note |
+|---|---|---|---|
+| `lm`, `glm` (binomial), `nnet::multinom`, `xgboost`, `rpart` | identical | fit | `predict.lm` warns about rank deficiency; the built-in `"linear"` learner therefore uses `lm.fit`/`glm.fit` with aliased coefficients set to 0 |
+| `glmnet` | identical | error: needs ≥ 2 columns | pre-existing glmnet limitation for any `p = 2` input; recorded as a learner failure |
+| `ranger` | differ (random candidate draws; the zero column takes an `mtry` slot) | fit | same effect in scikit-learn forests; equality across runs is not expected for forests anyway |
+| `kernlab::ksvm` | differ (scaling of a constant column) | error: no support vectors | recorded as a learner failure (`NA` + warning) |
+| `nnet` MLP | differ (random initial weights) | fit | stochastic learner |
+
+Decision: adopt the zero rule (deterministic learners give identical
+predictions, so the statistical quantity is unchanged; the column count is the
+same for every anchor; both languages behave identically). Learners that cannot
+handle a constant column fail on that split through the ordinary
+learner-failure path. The alternative (dropping the column, the R draft) is
+documented here as rejected; it is not available as an option in either
+package.
+
+## 16. Required changes on the Python side (as of `bfcb2a5`)
+
+Listed for the maintainers of `sharedimp-py`; nothing in that repository was
+modified from here.
+
+1. **Direction diagnostic.** Remove the `direction` argument of
+   `shared_importance()` and the `direction` columns; keep `_direction.py`
+   internal and marked experimental, or delete it (Section 13).
+2. **Single predictor.** Accept `p = 1`: the reduced representation has zero
+   columns and must be scored with the null model (training mean / training
+   class frequencies), not with the user's estimator (Sections 3, 8.3).
+3. **Default scoring.** Default to `neg_mean_squared_error` for regressors and
+   `neg_log_loss` for classifiers instead of `estimator.score` (Section 9.1),
+   or document the difference prominently if `estimator.score` is kept.
+4. **Learner failures.** Record a failed `(split, feature)` fit as `NaN` with a
+   warning and aggregate over the remaining splits (`n_splits` counts the
+   successful ones), with an option to raise instead (Section 10). A training
+   split with a single class is such a failure.
+5. **Specification pointer.** Replace the provisional
+   `docs/specification.md` by a pointer to this file plus Python-specific
+   notes, as its header already proposes; drop the `0.1-provisional` label.
+6. **Metric documentation.** State the scorer ↔ common-name mapping of
+   Section 9.1 (`r2` = `r2`, `roc_auc` multiclass = `roc_auc_ovo` macro, log
+   loss clipping depends on scikit-learn ≥ 1.5) and provide the Pearson²
+   scorer for `rsq` if that metric is wanted.
+7. **Parity test.** Add the fixture of Section 15.1 (including the collinear
+   variant) as a test with tolerance `1e-8` on every column of both tables.
+
+Already consistent with this specification (no change needed): fold-internal
+OLS residualization with the exact-collinearity rule (`tol = 1e-10`), Full
+with the anchor in place, Reduced without it, scorer orientation and
+`importance = score_full − score_reduced`, no truncation, unweighted mean and
+sample sd over splits, the common column names of Section 11, split-major row
+order of the per-split table, seeding policy, `x0..` default names.

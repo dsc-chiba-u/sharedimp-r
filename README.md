@@ -50,17 +50,17 @@ res
 #> <sharedimp_result>
 #>   task:       regression
 #>   learner:    rand_forest
-#>   metric:     mse (minimize); importance = -(full - reduced)
+#>   metric:     mse (minimize); score = -mse, importance = score_full - score_reduced
 #>   resampling: 5-fold cross-validation (1 repeat)
 #>
-#> # A tibble: 5 × 4
-#>   feature importance    sd n_folds
+#> # A tibble: 5 × 6
+#>   feature importance importance_std score_full score_reduced n_splits
 #>   ...
 
-# Fast deterministic linear learner, explicit metric
-shared_importance(x, y, learner = "linear", metric = "rsq", v = 5, seed = 1)
+# Fast deterministic linear learner, explicit metric (r2 = 1 - SS_res / SS_tot)
+shared_importance(x, y, learner = "linear", metric = "r2", v = 5, seed = 1)
 
-# Per-fold paired metrics
+# Per-split paired scores (common schema with the Python package)
 fold_results(res)
 
 # Classification (first level = event level), any yardstick metric
@@ -77,25 +77,30 @@ See `vignette("sharedimp")` for a longer walk-through.
 
 ## How it works
 
-For each anchor feature `i` and each fold:
+For each anchor feature `i` and each split:
 
 1. On the training rows, regress every other feature on the anchor
    (`X_j = a_j + b_j X_i + e`) and residualize both training and assessment
-   rows with the same `(a_j, b_j)`.
-2. Fit the learner to the *full* representation `[X_i, R_-i]` and to the
-   *reduced* representation `[R_-i]`.
-3. Evaluate both on the assessment rows and take
-   `importance = s * (metric_full - metric_reduced)`, where `s = +1` for a
-   metric to maximize and `-1` for one to minimize.
-4. Average over folds; keep the fold-level table.
+   rows with the same `(a_j, b_j)`. A column that is an exact affine function
+   of the anchor gets a residual of exactly zero (and is kept).
+2. Fit the learner to the *full* representation (the anchor, raw and in its
+   original position, plus the residualized others) and to the *reduced*
+   representation (the residualized others only).
+3. Score both on the assessment rows, with scores oriented greater-is-better
+   (`-mse`, `-log_loss`, `r2`, `accuracy`, ...), and take
+   `importance = score_full - score_reduced`.
+4. Average over splits; keep the split-level table.
+
+The R and Python packages share one specification
+([`docs/specification.md`](docs/specification.md)) and produce identical
+tables on deterministic learners with explicit splits.
 
 ## What the numbers are not
 
 They are out-of-sample predictive gains for a particular learner, metric and
 resampling scheme. They are **not** causal effects, conditional effects or
 regression coefficients, and the package provides no confidence intervals or
-p-values. The optional `direction = TRUE` diagnostic (correlation between the
-anchor and the full-minus-reduced prediction) is descriptive only.
+p-values; `importance_std` is a descriptive between-split dispersion.
 
 ## Differences from the reference UMFI-LR implementation
 

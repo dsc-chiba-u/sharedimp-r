@@ -1,0 +1,35 @@
+== fixture: Python importances ==
+ feature  importance  importance_std  score_full  score_reduced  n_splits
+     x1   48.322880        6.171472    -0.27647     -48.599350         3
+     x2   34.460026       29.593920    -0.27647     -34.736496         3
+     x3   45.550735       22.406341    -0.27647     -45.827205         3
+max |R - Py| importance     : 4.26e-14
+max |R - Py| importance_std : 3.91e-14
+max |R - Py| score_full     : 3.22e-15
+max |R - Py| score_reduced  : 4.26e-14
+n_splits equal: True
+fold table max |R - Py| score_full   : 5.44e-15
+fold table max |R - Py| score_reduced: 5.68e-14
+fold table max |R - Py| importance   : 6.75e-14
+fold n_train/n_test equal: True True
+== collinear variant ==
+feature         R        Py
+     x1 48.322880 48.322880
+     x2 34.460026 34.460026
+     x3 45.550735 45.550735
+ x1_dup 48.322880 48.322880
+max |R - Py| importance (collinear variant): 2.84e-14
+== metrics ==
+metric                R (yardstick)     Python (sklearn)     |diff|
+mse               0.436474862726398    0.436474862726398   2.22e-16
+rmse              0.660662442345861    0.660662442345861   2.22e-16
+mae               0.525441900880356    0.525441900880356   4.44e-16
+r2                0.253995457570833    0.253995457570834   9.44e-16
+rsq               0.564798537835728    0.564798537835727   7.77e-16
+log_loss_bin      0.955541249013373    0.955541249013373   4.44e-16
+accuracy_bin      0.450000000000000    0.450000000000000   0.00e+00
+roc_auc_bin       0.503759398496241    0.503759398496241   3.33e-16
+log_loss_mc       1.400856767768320    1.400856767768317   2.89e-15
+accuracy_mc       0.300000000000000    0.300000000000000   0.00e+00
+roc_auc_mc        0.467873303167421    0.467873303167421   2.22e-16
+roc_auc_mc_ovr                  nan    0.462448077955324        nan
