@@ -65,10 +65,11 @@ For anchor `i` and every other column `j`,
 Two deterministic rules cover degenerate cases (specification Section
 5.1):
 
-- If the anchor has zero sum of squares about its mean on the fitting
-  rows (it is constant), all slopes are set to zero, the intercepts
-  become the column means, and a warning of class
-  `sharedimp_constant_anchor` is raised.
+- If the anchor is constant on the fitting rows (`max == min`, tested
+  exactly), all slopes are set to zero, the intercepts become the column
+  means, and a warning of class `sharedimp_constant_anchor` is raised. A
+  column that is itself constant gets slope zero and its value as
+  intercept.
 
 - If a column `j` is (numerically) an exact affine function of the
   anchor on the fitting rows, i.e. its residual sum of squares is at
