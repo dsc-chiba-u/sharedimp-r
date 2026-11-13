@@ -234,12 +234,12 @@ on identical inputs (Section 15.2): every pair below agrees to ≤ 3e-15.
 
 | common name | task | direction | definition | R (yardstick) | Python (scikit-learn scorer) |
 |---|---|---|---|---|---|
-| `mse` (R default, regression) | regression | minimize | mean squared error | `sharedimp::mse` | `neg_mean_squared_error` |
+| `mse` (**default for regression**) | regression | minimize | mean squared error | `sharedimp::mse` | `neg_mean_squared_error` |
 | `rmse` | regression | minimize | sqrt(mse) | `rmse` | `neg_root_mean_squared_error` |
 | `mae` | regression | minimize | mean absolute error | `mae` | `neg_mean_absolute_error` |
 | `r2` | regression | maximize | `1 − SS_res / SS_tot` (coefficient of determination) | `rsq_trad` | `r2` |
 | `rsq` | regression | maximize | squared Pearson correlation of truth and estimate | `rsq` | none built in; `make_scorer(lambda y, p: np.corrcoef(y, p)[0, 1]**2)` |
-| `log_loss` (R default, classification) | classification | minimize | mean of `−log p_true`, probabilities clipped to `[ε, 1 − ε]` with `ε = 2^−52` (machine epsilon) | `mn_log_loss` | `neg_log_loss` (scikit-learn ≥ 1.5 clips at machine epsilon; earlier versions used `1e-15`) |
+| `log_loss` (**default for classification**) | classification | minimize | multinomial log loss: mean of `−log p_true`, probabilities clipped to `[ε, 1 − ε]` with `ε = 2^−52` (machine epsilon) | `mn_log_loss` | `neg_log_loss` (scikit-learn ≥ 1.5 clips at machine epsilon; earlier versions used `1e-15`) |
 | `accuracy` | classification | maximize | fraction of correct argmax labels | `accuracy` | `accuracy` |
 | `roc_auc` | binary | maximize | Mann–Whitney AUC (ties count ½) | `roc_auc` (event = first level) | `roc_auc` (positive = second sorted class). Identical value: swapping the event class and its probability column leaves the AUC unchanged |
 | `roc_auc` | multiclass | maximize | Hand & Till (2001): mean over class pairs of ½(A(i\|j) + A(j\|i)) | `roc_auc` (`hand_till`, the default) | `roc_auc_ovo` with `average="macro"`. **Not** `roc_auc_ovr` (one-vs-rest differs) |
@@ -256,10 +256,13 @@ Important distinctions:
 - Binary probability metrics never depend on which level is called the event
   as long as the matching probability column is used; R uses the first level,
   scikit-learn the second sorted class.
-- **Default metric.** R: `mse` (regression), `log_loss` (classification).
-  Python currently defaults to `estimator.score` (R² / accuracy). Parity tests
-  must pass the metric explicitly; Section 16 asks Python to adopt the R
-  defaults.
+- **Default metric (common).** When the caller does not name a metric, the
+  implementation uses `mse` for regression and multinomial `log_loss` for
+  classification, in both languages. Both are smooth, strictly proper scores
+  that decompose over observations. `r2` and `accuracy` remain available by
+  name. (Python at commit `692c3fe` still defaults to `estimator.score`, i.e.
+  R² / accuracy; Section 16, item 3.) Parity tests pass the metric explicitly
+  regardless.
 
 R additionally accepts any yardstick metric function; Python any scikit-learn
 scorer name or callable.
@@ -284,16 +287,22 @@ must not be presented as inference.
 ## 10. Learner failures
 
 If fitting or predicting fails (error, or non-finite predictions, or a training
-set with a single class) for split `s` and anchor `i`:
+set with a single class) for split `s` and anchor `i`, the **default
+behaviour in both languages** is:
 
 - the split row is recorded with `score_full`, `score_reduced` and
-  `importance` equal to `NA`, and the error message in the `error` column (R);
-- a warning is emitted summarising how many (feature, split) pairs failed;
-- aggregation uses the remaining splits; if no split succeeds, the feature's
-  summary values are `NA` and `n_splits = 0`.
+  `importance` equal to `NA` / `NaN` (R additionally stores the error message
+  in its `error` column);
+- one warning is emitted summarising how many (feature, split) pairs failed;
+- aggregation uses the remaining splits; `n_splits` counts the successful
+  ones; if no split succeeds, the feature's summary values are `NA` and
+  `n_splits = 0`.
 
-R: `on_error = "error"` aborts at the first failure instead. Python currently
-propagates the exception (Section 16).
+An option switches to **aborting at the first failure** instead (R:
+`on_error = "error"`; Python: the corresponding argument, name to be chosen on
+the Python side, e.g. `on_error="raise"`). Cross-language comparisons use the
+aborting mode so that a failure cannot be mistaken for a value. (Python at
+commit `692c3fe` only has the aborting behaviour; Section 16, item 4.)
 
 ## 11. Output schema
 
@@ -475,9 +484,8 @@ package.
 ## 16. Required changes on the Python side
 
 Listed for the maintainers of `sharedimp-py`; nothing in that repository was
-modified from here. Status column: what the uncommitted Python working tree
-contained at 12:50 JST on 2026-11-13 (its own `docs/specification.md`
-`0.2-draft`, §11), to be confirmed once it is committed.
+modified from here. Status: as of Python commit `692c3fe` (2026-11-13), which
+committed the working tree compared in Section 15.
 
 1. **Direction diagnostic.** Remove the `direction` argument of
    `shared_importance()` and the `direction` columns; keep `_direction.py`
@@ -488,20 +496,23 @@ contained at 12:50 JST on 2026-11-13 (its own `docs/specification.md`
    class frequencies), not with the user's estimator (Sections 3, 8.3).
    *Status: done in the working tree (`fit_null_model`).*
 3. **Default scoring.** Default to `neg_mean_squared_error` for regressors and
-   `neg_log_loss` for classifiers instead of `estimator.score` (Section 9.1),
-   or document the difference prominently if `estimator.score` is kept.
-   *Status: open; the Python side documented the difference and kept
-   `estimator.score`, treating the default as an API decision to be taken
-   jointly. Parity tests always pass the metric explicitly.*
+   `neg_log_loss` for classifiers instead of `estimator.score`. This is now a
+   **normative** part of the common specification (Section 9.1, decided
+   2026-11-13 after the Python side asked for a joint decision).
+   *Status at `692c3fe`: open; Python documents the difference and keeps
+   `estimator.score`.*
 4. **Learner failures.** Record a failed `(split, feature)` fit as `NaN` with a
    warning and aggregate over the remaining splits (`n_splits` counts the
-   successful ones), with an option to raise instead (Section 10). A training
-   split with a single class is such a failure.
-   *Status: open; Python propagates the exception.*
+   successful ones) **by default**, with an option to raise instead
+   (Section 10, now normative). A training split with a single class is such
+   a failure.
+   *Status at `692c3fe`: open; Python propagates the exception.*
 5. **Specification pointer.** Replace the provisional
    `docs/specification.md` by a pointer to this file plus Python-specific
    notes; drop the provisional label.
-   *Status: open, waiting for this revision to be committed (now done).*
+   *Status at `692c3fe`: open; the Python file is a full `0.2-draft` restatement
+   that agrees with this document on every decided item, with its §10/§11
+   listing the two open behaviours above.*
 6. **Metric documentation.** State the scorer ↔ common-name mapping of
    Section 9.1 (`r2` = `r2`, `roc_auc` multiclass = `roc_auc_ovo` macro, log
    loss clipping depends on scikit-learn ≥ 1.5) and provide the Pearson²
@@ -521,3 +532,24 @@ with the anchor in place, Reduced without it, scorer orientation and
 `importance = score_full − score_reduced`, no truncation, unweighted mean and
 sample sd over splits, the common column names of Section 11, split-major row
 order of the per-split table, seeding policy, `x0..` default names.
+
+## 17. Distribution: Docker images
+
+Both packages publish a Docker image from GitHub Actions
+(`.github/workflows/build_test_push.yml` in each repository) with the same
+policy:
+
+| event | tags pushed | registries |
+|---|---|---|
+| push to `main` | `latest`, short commit SHA (7 characters) | GHCR `ghcr.io/dsc-chiba-u/sharedimp-r` / `ghcr.io/dsc-chiba-u/sharedimp-py`; Docker Hub `koki/sharedimp-r` / `koki/sharedimp-py` |
+| release tag `vX.Y.Z` | `X.Y.Z`, `X.Y`, short commit SHA (**no** `latest`) | same |
+| pull request | none (build and test only) | — |
+
+`latest` therefore always points at the last successful build of `main`, and a
+version tag at the release it names. One `docker/build-push-action` build is
+tagged for both registries, so they hold the identical image digest. The
+build itself installs the package, runs its test suite and a smoke test that
+calls `shared_importance()`; a failing test fails the build and nothing is
+pushed. The R image is based on `rocker/r-ver` (pinned stable R release).
+Missing Docker Hub credentials fail a publishing run early with an explicit
+message; GHCR authenticates with the workflow's `GITHUB_TOKEN`.

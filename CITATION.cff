@@ -1,0 +1,59 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software, please cite it using the metadata below and cite
+  the UMFI paper listed under preferred-citation, which defines the quantity
+  that sharedimp computes. sharedimp does not claim a new feature-importance
+  method.
+title: "sharedimp: shared predictive importance via fold-internal residualization (UMFI-LR) for R"
+type: software
+version: 0.1.0
+license: MIT
+repository-code: "https://github.com/dsc-chiba-u/sharedimp-r"
+url: "https://github.com/dsc-chiba-u/sharedimp-r"
+abstract: >-
+  A resampling-based R implementation of the linear-regression variant of
+  ultra-marginal feature importance (UMFI-LR). For each anchor feature the
+  other predictors are residualized on the anchor with coefficients estimated
+  inside the training split only, and the out-of-sample performance of a
+  learner with and without the anchor is compared split by split. Built on
+  parsnip, rsample and yardstick; companion to the Python package sharedimp
+  (sharedimp-py), with which it shares one specification.
+keywords:
+  - feature importance
+  - ultra-marginal feature importance
+  - UMFI
+  - residualization
+  - cross-validation
+  - tidymodels
+  - R package
+authors:
+  - family-names: Tsuyuzaki
+    given-names: Koki
+    email: k.t.the-answer@hotmail.co.jp
+preferred-citation:
+  type: conference-paper
+  title: "Ultra-marginal Feature Importance: Learning from Data with Causal Guarantees"
+  authors:
+    - family-names: Janssen
+      given-names: Joseph
+    - family-names: Guan
+      given-names: Vincent
+    - family-names: Robeva
+      given-names: Elina
+  collection-title: "Proceedings of The 26th International Conference on Artificial Intelligence and Statistics"
+  collection-type: proceedings
+  volume: 206
+  start: 10782
+  end: 10814
+  year: 2023
+  publisher:
+    name: PMLR
+  url: "https://proceedings.mlr.press/v206/janssen23a.html"
+references:
+  - type: software
+    title: "sharedimp: cross-validated UMFI-LR feature importance for scikit-learn workflows"
+    authors:
+      - family-names: Tsuyuzaki
+        given-names: Koki
+    repository-code: "https://github.com/dsc-chiba-u/sharedimp-py"
+    license: MIT

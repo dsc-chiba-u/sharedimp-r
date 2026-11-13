@@ -1,22 +1,22 @@
 # Changes required in `sharedimp-py` to match the common specification
 
-Reference state: `sharedimp-py` commit `bfcb2a5` plus the uncommitted working
-tree observed at 12:50 JST on 2026-11-13 (edited concurrently on the Python
-side; nothing there was modified from this repository). The canonical list is
-Section 16 of `docs/specification.md`; this file repeats it with pointers into
-the Python code and the status observed in that working tree.
+Reference state: `sharedimp-py` commit `692c3fe` (2026-11-13; nothing there
+was modified from this repository). The canonical list is Section 16 of
+`docs/specification.md`; this file repeats it with pointers into the Python
+code and the status observed at that commit.
 
 ## Items raised by the R side
 
-| # | item | where in `sharedimp-py` | what to do | status in the working tree (12:50 JST) |
+| # | item | where in `sharedimp-py` | what to do | status at `692c3fe` |
 |---|---|---|---|---|
 | 1 | Direction diagnostic is out of the v0.1 API | `_core.py` (`direction=` argument, `direction` columns), `_direction.py`, `_result.py`, docs | Remove the argument and the columns. Keep `_direction.py` only as internal, clearly marked experimental, or delete it. The R and Python definitions differed (Pearson on `pred_full − pred_reduced` vs Spearman on `pred_full`). | done |
 | 2 | `p = 1` must be accepted | `_core.py::_validate_X` | Allow one column. When the reduced representation has zero columns, score the null model (training mean for regressors; training class frequencies for classifiers) instead of calling the estimator. R implements this in `null_learner()`. | done (`fit_null_model`) |
-| 3 | Default scoring | `_scoring.py::resolve_scorer` (`scoring=None` → `estimator.score`) | Default to `neg_mean_squared_error` for regressors and `neg_log_loss` for classifiers (R defaults `mse` / `log_loss`), or keep `estimator.score` and document it. | open: documented, default unchanged; to be decided jointly |
-| 4 | Learner failures | `_core.py::_evaluate_anchor` | Catch fit/predict errors (and a training split with a single class) per `(split, feature)`, record `NaN` scores, warn once with the count, aggregate over the remaining splits with `n_splits` = successful splits; offer a flag to raise instead (R: `on_error = "error"`). | open: exception propagates |
-| 5 | Specification pointer | `docs/specification.md`, `CLAUDE.md` | Replace the Python-side spec by a pointer to `sharedimp-r/docs/specification.md` plus Python-specific notes. | open: waiting for the R revision, which is now committed |
+| 3 | Default scoring (**normative**, spec §9.1) | `_scoring.py::resolve_scorer` (`scoring=None` → `estimator.score`) | Default to `neg_mean_squared_error` for regressors and `neg_log_loss` for classifiers. The common specification now fixes MSE / multinomial log loss as the defaults in both languages. | open: `estimator.score` kept and documented |
+| 4 | Learner failures (**normative**, spec §10) | `_core.py::_evaluate_anchor` | By default catch fit/predict errors (and a training split with a single class) per `(split, feature)`, record `NaN` scores, warn once with the count, aggregate over the remaining splits with `n_splits` = successful splits; offer an option to raise instead (R: `on_error = "error"`). | open: exception propagates |
+| 5 | Specification pointer | `docs/specification.md`, `CLAUDE.md` | Replace the Python-side spec by a pointer to `sharedimp-r/docs/specification.md` plus Python-specific notes. | open: full `0.2-draft` restatement, consistent on all decided items |
 | 6 | Metric documentation | README / docstrings | State the common-name ↔ scorer mapping: `r2` ↔ `r2`, `rsq` ↔ Pearson² (custom scorer), `log_loss` ↔ `neg_log_loss` (machine-epsilon clipping needs scikit-learn ≥ 1.5), `roc_auc` multiclass ↔ `roc_auc_ovo` with `average="macro"` (**not** `roc_auc_ovr`). | done (`common_scorer()`) |
-| 7 | Parity test | `tests/` | Add the fixture of specification Section 15.1 (and its collinear variant) with tolerance `1e-8` on every column of both tables. | done; but `tests/fixtures/cross_language/r_reference.json` was generated from R commit `6c5631d` (old layout) and must be regenerated from the current R commit, removing the compensating conversions in `tests/test_cross_language.py` |
+| 7 | Parity test | `tests/` | Add the fixture of specification Section 15.1 (and its collinear variant) with tolerance `1e-8` on every column of both tables. | done; `tests/fixtures/cross_language/r_reference.json` was generated from R commit `6c5631d` (old layout) and should be regenerated from the current R commit, removing the compensating conversions in `tests/test_cross_language.py` |
+| 8 | Docker policy (spec §17) | `.github/workflows/build_test_push.yml`, `Dockerfile` | `latest` + short SHA on `main`, semver tags on `vX.Y.Z`, no push on PRs, same digest to GHCR and Docker Hub. | done: Python workflow already follows this policy |
 
 ## Already consistent (no change)
 
