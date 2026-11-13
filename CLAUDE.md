@@ -70,6 +70,8 @@ unexported; do not expose it without an agreed definition.
 - `R/result.R` — `sharedimp_result` class, `print()`, `fold_results()`.
 - `R/direction.R` — experimental, unexported, unreachable from the API.
 - `tests/testthat/` — one file per concern; see "Testing".
+- `docs/STATUS.md` — running work log and TODO list across the three repos;
+  read it first when resuming, update it at the end of a session.
 - `docs/specification.md` — common spec. `docs/python_changes.md` — what the
   Python side must change. `docs/parity/` — cross-language verification
   record. `docs/umfi_comparison.md` — comparison with the reference
