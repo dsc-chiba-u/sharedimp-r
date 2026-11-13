@@ -78,7 +78,7 @@
 <li>
 <code>docs/STATUS.md</code> — running work log and TODO list across the three repos; read it first when resuming, update it at the end of a session.</li>
 <li>
-<code>docs/specification.md</code> — common spec. <code>docs/python_changes.md</code> — Python status per spec item. <code>docs/parity/rank_deficiency.md</code> — why rank-deficient OLS designs need a learner with an explicit rank decision in parity tests. <code>docs/parity/</code> — cross-language verification record. <code>docs/umfi_comparison.md</code> — comparison with the reference implementation.</li>
+<code>docs/specification.md</code> — common spec. <code>docs/python_changes.md</code> — Python status per spec item. <code>docs/parity/rank_deficiency.md</code> — why rank-deficient OLS designs need a learner that reproduces <code>lm.fit</code>’s aliasing in parity tests (with its later correction). <code>docs/parity/</code> — cross-language verification record. <code>docs/umfi_comparison.md</code> — comparison with the reference implementation.</li>
 </ul></div>
 <div class="section level2">
 <h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a></h2>
@@ -106,7 +106,7 @@ $R -e 'devtools::build_vignettes()'</code></pre>
 <li>Fixed hyperparameters inside <code><a href="reference/shared_importance.html">shared_importance()</a></code>; no tuning.</li>
 <li>Negative importance is never truncated.</li>
 <li>Metric direction is taken from the yardstick <code>direction</code> attribute; never hard-code a sign for a named metric elsewhere. <code>r2</code> means <code>rsq_trad</code> (1 − SS_res/SS_tot), <code>rsq</code> means squared Pearson correlation; keep them distinct.</li>
-<li>Do not claim that arbitrary learners give identical predictions across languages on rank-deficient designs; parity tests on such designs use an OLS learner with an explicit rank decision (<code>lm.fit</code> in R).</li>
+<li>Do not claim that arbitrary learners give identical predictions across languages on rank-deficient designs: OLS coefficients are not unique there, and predictions on assessment rows that leave the training dependency depend on the solver’s convention. <code>lm.fit</code> aliases in column order; parity tests on such designs must reproduce that convention (Python: test-only <code>AliasingOLS</code>), not merely recognise the rank deficiency.</li>
 <li>Learner failures on a split produce <code>NA</code> for that split plus a warning, not an abort (unless <code>on_error = "error"</code>).</li>
 <li>Dependencies: Imports are parsnip, rsample, yardstick, ranger, rlang, tibble, stats. Everything else (glmnet, kernlab, ggplot2, nnet, …) is Suggests and must be guarded with <code><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace()</a></code>.</li>
 <li>Target CRAN quality: <code>R CMD check</code> with no ERRORs/WARNINGs; examples run in seconds; tests deterministic (always pass <code>seed</code> or explicit <code>resamples</code>).</li>
