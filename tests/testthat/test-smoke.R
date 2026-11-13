@@ -64,28 +64,11 @@ test_that("a class missing from a training fold does not break probability align
   expect_true(all(is.finite(r$importance$importance)))
 })
 
-test_that("direction diagnostic has the expected sign and is NA for multiclass", {
-  d <- linear_design(n = 150)
-  r <- shared_importance(d$x, d$y, learner = "linear", v = 3, seed = 1, direction = TRUE)
-  expect_identical(names(r$importance), c("feature", "importance", "sd", "n_folds", "direction"))
-  expect_true("direction" %in% names(r$folds))
-  expect_s3_class(r$direction, "tbl_df")
-  expect_identical(names(r$direction), c("feature", "direction", "sd", "n_folds"))
-  # positive coefficients -> anchor and (full - reduced) prediction move together
-  expect_true(all(r$importance$direction[1:3] > 0.9))
-  # negative coefficient -> negative direction
-  y_neg <- -3 * d$x[, "x1"] + rnorm(150, sd = 0.1)
-  r_neg <- shared_importance(d$x, y_neg, learner = "linear", v = 3, seed = 1, direction = TRUE)
-  expect_lt(r_neg$importance$direction[1], -0.9)
-
-  b <- make_cls(k = 2)
-  rb <- suppressWarnings(shared_importance(b$x, b$y, learner = "linear", v = 3, seed = 1, direction = TRUE))
-  expect_true(all(is.finite(rb$importance$direction)))
-  # P(yes) increases with x1 (first level is "yes")
-  expect_gt(rb$importance$direction[1], 0.5)
-
-  skip_if_not_installed("nnet")
-  m <- make_cls(n = 150, k = 3)
-  rm3 <- shared_importance(m$x, m$y, learner = "linear", v = 3, seed = 1, direction = TRUE)
-  expect_true(all(is.na(rm3$importance$direction)))
+test_that("the direction diagnostic is not exported and not an argument of shared_importance()", {
+  expect_false("direction" %in% names(formals(shared_importance)))
+  expect_false("compute_direction" %in% getNamespaceExports("sharedimp"))
+  # the internal function still works, for future reconciliation with Python
+  a <- 1:10
+  expect_equal(sharedimp:::compute_direction(a, 2 * a, rep(0, 10), "regression", NULL), 1)
+  expect_true(is.na(sharedimp:::compute_direction(a, 2 * a, 2 * a, "regression", NULL)))
 })

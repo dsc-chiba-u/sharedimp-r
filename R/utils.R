@@ -1,10 +1,11 @@
 # Internal helpers: input validation, constant detection, local RNG scope.
 
-#' Constant-column test used throughout the package
+#' Tolerant constant-vector test
 #'
-#' A vector is treated as constant when `max(v) - min(v) <= 1e-10 * max(1,
-#' max(abs(v)))`. This is the only numerical tolerance in the algorithm (see
-#' `docs/specification.md`, Section 7).
+#' Used only by the experimental, non-exported direction diagnostic. The
+#' algorithm itself uses the exact rules of `docs/specification.md`,
+#' Section 5.1 (zero sum of squares for the anchor; relative residual sum of
+#' squares for collinear columns), implemented in `residualize_fit_impl()`.
 #'
 #' @param v A numeric vector without missing values.
 #' @return A single logical.

@@ -1,7 +1,16 @@
-# Optional direction diagnostic (specification Section 13).
+# Direction diagnostic -- EXPERIMENTAL, NOT PART OF THE v0.1 COMMON API.
 #
-# dir = cor(anchor values on the assessment fold,
-#           prediction with anchor - prediction without anchor)
+# This function is intentionally not exported and is not reachable from
+# shared_importance(). It is kept for future work only. The R draft used
+#
+#   dir = cor(anchor values on the assessment rows,
+#             prediction with anchor - prediction without anchor)   (Pearson)
+#
+# whereas the Python draft used the Spearman correlation between the anchor
+# and the Full model's prediction. These are different statistical quantities,
+# so the diagnostic was removed from the public API of both packages until a
+# single definition is agreed (specification Section 13). Whatever is adopted
+# must not be described as a causal or conditional effect.
 #
 # For binary classification the predictions are probabilities of the first
 # level. It is NA for multiclass tasks and when either input is constant.

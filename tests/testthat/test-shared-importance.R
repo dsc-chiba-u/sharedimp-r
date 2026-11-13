@@ -2,11 +2,14 @@ test_that("result object has the documented structure", {
   d <- linear_design(n = 60)
   res <- shared_importance(d$x, d$y, learner = ols_learner(), metric = "mse", v = 3, seed = 1)
   expect_s3_class(res, "sharedimp_result")
-  expect_identical(names(res$importance), c("feature", "importance", "sd", "n_folds"))
+  expect_identical(
+    names(res$importance),
+    c("feature", "importance", "importance_std", "score_full", "score_reduced", "n_splits")
+  )
   expect_identical(res$importance$feature, colnames(d$x))
   expect_identical(
     names(res$folds),
-    c("feature", "id", "id2", "metric_full", "metric_reduced", "importance", "error")
+    c("feature", "split", "n_train", "n_test", "score_full", "score_reduced", "importance", "id", "id2", "error")
   )
   expect_identical(nrow(res$folds), 12L)
   expect_identical(res$task, "regression")
@@ -15,12 +18,12 @@ test_that("result object has the documented structure", {
   expect_identical(res$p, 4L)
   expect_identical(res$seed, 1)
   expect_null(res$levels)
-  expect_null(res$direction)
+  expect_identical(res$v, 3L)
   expect_match(res$resampling, "3-fold cross-validation")
   expect_s3_class(fold_results(res), "tbl_df")
   expect_identical(as.data.frame(res), as.data.frame(res$importance))
   expect_output(print(res), "<sharedimp_result>")
-  expect_output(print(res), "importance = -\\(full - reduced\\)")
+  expect_output(print(res), "score = -mse, importance = score_full - score_reduced")
   expect_output(summary(res), "learner:")
   expect_error(fold_results(1), "sharedimp_result")
 })
@@ -37,7 +40,7 @@ test_that("seed makes results reproducible and restores the caller's RNG state",
   expect_identical(r1$importance, r2$importance)
   expect_identical(r1$folds, r2$folds)
   r3 <- shared_importance(d$x, d$y, learner = "rand_forest", v = 3, seed = 100)
-  expect_false(identical(r1$folds$metric_full, r3$folds$metric_full))
+  expect_false(identical(r1$folds$score_full, r3$folds$score_full))
 
   # without a seed, the global stream is consumed (no restoration)
   set.seed(1)
@@ -63,7 +66,7 @@ test_that("explicit resamples are honoured (rset and fold labels)", {
   tr <- rs$splits[[1]]$in_id
   fit <- stats::lm.fit(cbind(1, d$x[tr, ]), d$y[tr])
   mse1 <- mean((d$y[te] - cbind(1, d$x[te, ]) %*% fit$coefficients)^2)
-  expect_equal(r_rs$folds$metric_full[r_rs$folds$id == rs$id[1]][1], mse1)
+  expect_equal(r_rs$folds$score_full[r_rs$folds$id == rs$id[1]][1], -mse1)
 
   rs_rep <- rsample::vfold_cv(data.frame(i = 1:40), v = 2, repeats = 2)
   r_rep <- shared_importance(d$x, d$y, learner = ols_learner(), metric = "mse", resamples = rs_rep)
@@ -107,7 +110,8 @@ test_that("input validation covers x, y and task", {
   expect_error(shared_importance(d$x, factor(rep("a", 30))), "at least two classes")
   expect_error(shared_importance(data.frame(a = 1:30, b = letters[rep(1:3, 10)]), d$y), "Non-numeric")
   expect_error(shared_importance(d$x[1, , drop = FALSE], d$y[1]), "two rows")
-  expect_error(shared_importance(d$x, d$y, direction = "yes"), "TRUE")
+  # the direction diagnostic is not part of the v0.1 API
+  expect_error(shared_importance(d$x, d$y, direction = TRUE), "unused argument")
   xm <- d$x
   xm[2, 3] <- Inf
   expect_error(shared_importance(xm, d$y), "non-finite")
@@ -129,6 +133,6 @@ test_that("verbose prints progress", {
   d <- linear_design(n = 20)
   expect_message(
     shared_importance(d$x, d$y, learner = ols_learner(), metric = "mse", resamples = fixed_folds(20, 2), verbose = TRUE, features = "x1"),
-    "Feature 1/1: x1"
+    "Split 1/2 \\(Fold1\\)"
   )
 })

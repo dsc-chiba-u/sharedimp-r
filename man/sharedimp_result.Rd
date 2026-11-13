@@ -25,15 +25,31 @@ fold_results(x)
 generic.}
 }
 \value{
-\code{fold_results()} returns a tibble with one row per (feature, fold)
-and columns \code{feature}, \code{id}, \code{id2}, \code{metric_full}, \code{metric_reduced},
-\code{importance}, \code{error}, and \code{direction} when it was requested.
+\code{fold_results()} returns a tibble with one row per (split, feature),
+ordered by split and then by feature, with the common columns \code{feature},
+\code{split} (1-based index in generation order), \code{n_train}, \code{n_test},
+\code{score_full}, \code{score_reduced}, \code{importance}, followed by the R-specific
+columns \code{id}, \code{id2} (\code{rsample} labels) and \code{error} (\code{NA} unless the
+learner failed on that split).
 \code{as.data.frame()} returns the \code{importance} table as a plain data frame.
 }
 \description{
 \code{shared_importance()} returns an object of class \code{sharedimp_result}. The
 headline table is \verb{$importance}; \code{fold_results()} (or \verb{$folds}) gives the
-paired per-fold metrics from which it was aggregated.
+paired per-split scores from which it was aggregated. Both tables use the
+column names shared with the Python package.
+}
+\details{
+\verb{$importance} has one row per anchor feature, in the order of \code{features},
+with columns \code{feature}, \code{importance} (mean over splits of
+\code{score_full - score_reduced}), \code{importance_std} (sample standard deviation
+of the per-split importances, \code{NA} with one split; descriptive, not a
+standard error), \code{score_full}, \code{score_reduced} (mean scores) and
+\code{n_splits} (number of splits with a successful fit).
+
+Scores are oriented so that greater is better: the metric value for a
+metric to maximize and its negative for a metric to minimize (see
+\code{\link[=as_metric]{as_metric()}}).
 }
 \examples{
 set.seed(1)

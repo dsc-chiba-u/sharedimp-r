@@ -29,27 +29,32 @@ and \code{fn}. \code{mse} is the \code{yardstick}-style metric function itself.
 \code{metric} argument accepts a built-in metric name or any \code{yardstick} metric
 function (class \code{numeric_metric}, \code{class_metric}, or \code{prob_metric}) whose
 direction is \code{"maximize"} or \code{"minimize"}. The direction determines the
-sign convention: importance is \code{+(full - reduced)} for metrics to maximize
-and \code{-(full - reduced)} for metrics to minimize, so that a positive value
-always means that keeping the anchor feature predicts better.
+orientation of the reported \emph{scores}: the metric value for metrics to
+maximize and its negative for metrics to minimize, so that
+\code{importance = score_full - score_reduced} is positive whenever keeping the
+anchor feature predicts better.
 }
 \details{
-Built-in names:\tabular{lll}{
-   name \tab task \tab direction \cr
-   \code{"mse"} (default) \tab regression \tab minimize \cr
-   \code{"rmse"} \tab regression \tab minimize \cr
-   \code{"mae"} \tab regression \tab minimize \cr
-   \code{"rsq"} \tab regression \tab maximize \cr
-   \code{"mn_log_loss"} (default) \tab classification \tab minimize \cr
-   \code{"accuracy"} \tab classification \tab maximize \cr
-   \code{"roc_auc"} \tab classification \tab maximize \cr
+Built-in names (the common names of the R/Python specification, with the
+\code{yardstick} function and the matching scikit-learn scorer):\tabular{lllll}{
+   name \tab task \tab direction \tab yardstick \tab scikit-learn \cr
+   \code{"mse"} (default) \tab regression \tab minimize \tab \code{mse} (this package) \tab \code{neg_mean_squared_error} \cr
+   \code{"rmse"} \tab regression \tab minimize \tab \code{rmse} \tab \code{neg_root_mean_squared_error} \cr
+   \code{"mae"} \tab regression \tab minimize \tab \code{mae} \tab \code{neg_mean_absolute_error} \cr
+   \code{"r2"} \tab regression \tab maximize \tab \code{rsq_trad} (1 - SS_res / SS_tot) \tab \code{r2} \cr
+   \code{"rsq"} \tab regression \tab maximize \tab \code{rsq} (squared Pearson correlation) \tab none built in \cr
+   \code{"log_loss"} (default) \tab classification \tab minimize \tab \code{mn_log_loss} \tab \code{neg_log_loss} \cr
+   \code{"accuracy"} \tab classification \tab maximize \tab \code{accuracy} \tab \code{accuracy} \cr
+   \code{"roc_auc"} \tab classification \tab maximize \tab \code{roc_auc} (binary; Hand-Till for multiclass) \tab \code{roc_auc} / \code{roc_auc_ovo} \cr
 }
 
 
-\code{"mse"} is the mean squared error, implemented as a \code{yardstick} metric
-because \code{yardstick} does not ship one. For binary tasks the first level of
-\code{y} is the event level of probability metrics; for multiclass tasks
-\code{"roc_auc"} uses the Hand-Till estimator (the \code{yardstick} default).
+The \code{yardstick} names \code{"rsq_trad"} and \code{"mn_log_loss"} are accepted as
+aliases of \code{"r2"} and \code{"log_loss"}. \code{"mse"} is implemented here because
+\code{yardstick} does not ship a mean squared error. For binary tasks the first
+level of \code{y} is the event level of probability metrics (log loss and AUC do
+not depend on this choice); for multiclass tasks \code{"roc_auc"} uses the
+Hand-Till estimator.
 }
 \examples{
 m <- as_metric("rmse", task = "regression")

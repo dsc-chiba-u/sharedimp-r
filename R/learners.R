@@ -12,8 +12,10 @@
 #'
 #' * a string: `"rand_forest"` (default; `ranger` with 500 trees and
 #'   `min_n = 5`, `mtry = floor(sqrt(ncol(x)))`) or `"linear"` (ordinary least
-#'   squares, logistic regression, or multinomial logistic regression via
-#'   `nnet`, depending on the task);
+#'   squares via `stats::lm.fit()`, unpenalized logistic regression via
+#'   `stats::glm.fit()`, or multinomial logistic regression via
+#'   `nnet::multinom()`, depending on the task; aliased coefficients are set
+#'   to zero);
 #' * a `parsnip` model specification whose mode matches the task, used as is
 #'   (its hyperparameters are fixed; nothing is tuned);
 #' * an object created by `sharedimp_learner()`.
@@ -98,15 +100,51 @@ builtin_rand_forest <- function(task) {
 
 builtin_linear <- function(task, levels) {
   if (task == "regression") {
-    return(parsnip::set_engine(parsnip::linear_reg(), "lm"))
+    return(ols_learner_builtin())
   }
   if (length(levels) == 2L) {
-    return(parsnip::set_engine(parsnip::logistic_reg(), "glm"))
+    return(logistic_learner_builtin(levels))
   }
   if (!requireNamespace("nnet", quietly = TRUE)) {
     abort("The \"linear\" learner for multiclass tasks needs the 'nnet' package.")
   }
   multinom_learner(levels)
+}
+
+# Coefficients of a rank-deficient fit are NA in R; the specification sets
+# aliased coefficients to zero so that predictions stay finite. A residual
+# column fixed at zero (exact collinearity rule) is the common case.
+coef_or_zero <- function(beta) {
+  beta[is.na(beta)] <- 0
+  beta
+}
+
+# Ordinary least squares through stats::lm.fit() (same estimator as lm(),
+# without the formula interface and without predict.lm()'s rank-deficiency
+# warning, which the exact-collinearity rule would trigger routinely).
+ols_learner_builtin <- function() {
+  sharedimp_learner(
+    fit = function(x, y) coef_or_zero(stats::lm.fit(cbind(1, x), y)$coefficients),
+    predict = function(model, x) drop(cbind(1, x) %*% model),
+    label = "linear"
+  )
+}
+
+# Unpenalized logistic regression through stats::glm.fit(); the first level
+# of `y` is the event, so the first probability column is P(first level).
+logistic_learner_builtin <- function(levels) {
+  sharedimp_learner(
+    fit = function(x, y) {
+      event <- as.numeric(y == levels[1L])
+      fit <- stats::glm.fit(cbind(1, x), event, family = stats::binomial())
+      coef_or_zero(fit$coefficients)
+    },
+    predict = function(model, x) {
+      p1 <- stats::plogis(drop(cbind(1, x) %*% model))
+      matrix(c(p1, 1 - p1), ncol = 2L, dimnames = list(NULL, levels))
+    },
+    label = "linear"
+  )
 }
 
 # Multinomial logistic regression through nnet::multinom() called directly.

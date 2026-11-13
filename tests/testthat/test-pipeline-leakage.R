@@ -29,8 +29,8 @@ test_that("the learner receives training representations built from training row
     # same coefficients applied to assessment rows
     expect_equal(unname(full_assess[, j]), unname(assess[, j] - cf$intercept[j] - cf$slope[j] * assess[, "a"]))
   }
-  expect_equal(reduced_train, full_train[, -1, drop = FALSE])
-  expect_equal(reduced_assess, full_assess[, -1, drop = FALSE])
+  expect_equal(reduced_train, full_train[, c("b", "c"), drop = FALSE])
+  expect_equal(reduced_assess, full_assess[, c("b", "c"), drop = FALSE])
   expect_equal(store$fits[[1]]$y, y[4:6])
   expect_equal(store$fits[[2]]$y, y[4:6])
 })
@@ -69,10 +69,10 @@ test_that("the same folds are used for every anchor and for full/reduced", {
   # 4 anchors x 3 folds x 2 models
   expect_length(store$fits, 24L)
   ys <- lapply(store$fits, `[[`, "y")
-  # fits are ordered anchor-major, fold-minor, (full, reduced): y vectors repeat
-  for (a in 0:3) {
-    for (k in 1:3) {
-      idx <- a * 6 + (k - 1) * 2 + 1
+  # fits are ordered split-major, anchor-minor, (full, reduced): y vectors repeat
+  for (k in 1:3) {
+    for (a in 0:3) {
+      idx <- (k - 1) * 8 + a * 2 + 1
       expect_equal(ys[[idx]], d$y[folds != k])
       expect_equal(ys[[idx + 1]], ys[[idx]])
     }

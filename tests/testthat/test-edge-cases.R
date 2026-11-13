@@ -49,8 +49,8 @@ test_that("a single predictor is handled with the null model", {
   # reduced model predicts the training mean: MSE ~ Var(y) ~ 4; full ~ 0.01
   expect_gt(res$importance$importance, 3)
   fr <- fold_results(res)
-  expect_true(all(fr$metric_reduced > 3))
-  expect_true(all(fr$metric_full < 0.05))
+  expect_true(all(-fr$score_reduced > 3))
+  expect_true(all(-fr$score_full < 0.05))
 })
 
 test_that("a constant anchor is reported once and does not abort", {

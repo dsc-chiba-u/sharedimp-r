@@ -15,14 +15,14 @@ shared_importance(
   resamples = NULL,
   features = NULL,
   seed = NULL,
-  direction = FALSE,
   on_error = c("warn", "error"),
   verbose = FALSE
 )
 }
 \arguments{
 \item{x}{A numeric matrix or a data frame whose columns are all numeric.
-Missing values are not allowed.}
+Missing values are not allowed. A single column is allowed; the reduced
+model is then the null model (training mean or class frequencies).}
 
 \item{y}{The response: a numeric vector for regression or a factor for
 classification (binary or multiclass; the first level is the event level
@@ -33,8 +33,8 @@ specification, or a \code{\link[=sharedimp_learner]{sharedimp_learner()}}. Hyper
 tuning is performed. See \code{\link[=sharedimp_learner]{sharedimp_learner()}} for details.}
 
 \item{metric}{A built-in metric name or a \code{yardstick} metric function. The
-defaults are \code{"mse"} for regression and \code{"mn_log_loss"} for
-classification. See \code{\link[=as_metric]{as_metric()}}.}
+defaults are \code{"mse"} for regression and \code{"log_loss"} for classification.
+See \code{\link[=as_metric]{as_metric()}}.}
 
 \item{task}{\code{"auto"} (default: numeric \code{y} is regression, factor \code{y} is
 classification), \code{"regression"}, or \code{"classification"}.}
@@ -46,7 +46,8 @@ used when \code{resamples} is \code{NULL}. Classification folds are stratified b
 \item{resamples}{Optional explicit resampling: an \code{rsample} \code{rset} built on
 data with \code{nrow(x)} rows, or an integer vector of length \code{nrow(x)} whose
 unique values label the assessment fold of each row. Overrides \code{v} and
-\code{repeats}.}
+\code{repeats}. Explicit splits are the mechanism for comparisons with the
+Python implementation.}
 
 \item{features}{Optional names or indices of the anchor features to
 evaluate. Default: all columns of \code{x}.}
@@ -55,47 +56,44 @@ evaluate. Default: all columns of \code{x}.}
 stochastic learner run under a local RNG state seeded with \code{seed}, and the
 caller's RNG state is restored afterwards.}
 
-\item{direction}{Logical. If \code{TRUE}, also report the direction diagnostic:
-the correlation, on each assessment fold, between the anchor's values and
-the difference between the full and reduced predictions (probability of
-the first level for binary classification; \code{NA} for multiclass). It is a
-descriptive summary only and must not be read as a causal or conditional
-effect.}
-
-\item{on_error}{\code{"warn"} (default) records a learner failure on a fold as
-\code{NA}, aggregates over the remaining folds and warns; \code{"error"} stops at
+\item{on_error}{\code{"warn"} (default) records a learner failure on a split as
+\code{NA}, aggregates over the remaining splits and warns; \code{"error"} stops at
 the first failure.}
 
 \item{verbose}{Print progress messages?}
 }
 \value{
 An object of class \code{sharedimp_result} (see \link{sharedimp_result}) with
-elements \code{importance} (tibble: \code{feature}, \code{importance}, \code{sd}, \code{n_folds},
-and \code{direction} when requested), \code{folds} (per-fold paired metrics;
-see \code{\link[=fold_results]{fold_results()}}), \code{metric}, \code{task}, \code{learner}, \code{direction}, and
-bookkeeping fields \code{n}, \code{p}, \code{v}, \code{repeats}, \code{seed}, \code{levels},
-\code{resampling}, \code{call}.
+elements \code{importance} (tibble with the common columns \code{feature},
+\code{importance}, \code{importance_std}, \code{score_full}, \code{score_reduced},
+\code{n_splits}), \code{folds} (per-split paired scores; see \code{\link[=fold_results]{fold_results()}}),
+\code{metric}, \code{task}, \code{learner}, and bookkeeping fields \code{n}, \code{p}, \code{v},
+\code{repeats}, \code{seed}, \code{levels}, \code{resampling}, \code{call}.
 }
 \description{
 For every anchor feature, \code{shared_importance()} residualizes the other
 predictors on the anchor using ordinary least squares coefficients estimated
-on the training rows of each resampling fold, applies the same coefficients
+on the training rows of each resampling split, applies the same coefficients
 to the assessment rows, fits the learner to the \emph{full} representation
 (anchor plus residualized others) and to the \emph{reduced} representation
 (residualized others only), and compares their assessment-set performance.
 This is the linear-regression variant of ultra-marginal feature importance
 (UMFI-LR) of Janssen, Guan and Robeva (2023), evaluated out of sample with
-paired folds.
+paired splits. The R and Python packages follow one common specification
+(\code{docs/specification.md} in the source repository).
 }
-\section{Sign convention}{
+\section{Scores and sign convention}{
 
-Let \code{s = +1} if the metric is to be maximized and \code{s = -1} if it is to be
-minimized. For each fold, \code{importance = s * (metric_full - metric_reduced)},
-so a positive value always means that keeping the anchor predicts better
-than the residualized others alone. Negative values are reported as they
-are; they are never truncated to zero. The reported importance is the mean
-over folds; \code{sd} is the sample standard deviation of the fold values and is
-a descriptive quantity only, not a standard error.
+Every metric is reported as a \emph{score} oriented so that greater is better:
+the metric value itself for a metric to maximize (\code{"r2"}, \code{"accuracy"},
+\code{"roc_auc"}, ...), and its negative for a metric to minimize (\code{"mse"},
+\code{"rmse"}, \code{"mae"}, \code{"log_loss"}, ...). For each split,
+\code{importance = score_full - score_reduced}, so a positive value always means
+that keeping the anchor predicts better than the residualized others alone.
+Negative values are reported as they are; they are never truncated to zero.
+The reported importance is the mean over splits; \code{importance_std} is the
+sample standard deviation of the split values and is a descriptive quantity
+only, not a standard error.
 }
 
 \section{What the numbers are not}{
@@ -103,9 +101,7 @@ a descriptive quantity only, not a standard error.
 The values are out-of-sample predictive gains for a particular learner,
 metric and resampling scheme. They are not causal effects, not regression
 coefficients and not conditional effects, and the package deliberately
-provides no confidence intervals or p-values. See \code{docs/specification.md}
-in the source repository for the complete specification, including how the
-computation differs from the reference UMFI-LR implementation.
+provides no confidence intervals or p-values.
 }
 
 \examples{
@@ -120,7 +116,7 @@ res <- shared_importance(x, y, learner = "linear", v = 5, seed = 1)
 res
 fold_results(res)
 
-# Binary classification with log loss
+# Binary classification with accuracy
 yb <- factor(ifelse(y > median(y), "high", "low"))
 shared_importance(x, yb, learner = "linear", metric = "accuracy", v = 5, seed = 1)
 

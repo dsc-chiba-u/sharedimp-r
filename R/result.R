@@ -2,14 +2,29 @@
 #'
 #' `shared_importance()` returns an object of class `sharedimp_result`. The
 #' headline table is `$importance`; `fold_results()` (or `$folds`) gives the
-#' paired per-fold metrics from which it was aggregated.
+#' paired per-split scores from which it was aggregated. Both tables use the
+#' column names shared with the Python package.
+#'
+#' `$importance` has one row per anchor feature, in the order of `features`,
+#' with columns `feature`, `importance` (mean over splits of
+#' `score_full - score_reduced`), `importance_std` (sample standard deviation
+#' of the per-split importances, `NA` with one split; descriptive, not a
+#' standard error), `score_full`, `score_reduced` (mean scores) and
+#' `n_splits` (number of splits with a successful fit).
+#'
+#' Scores are oriented so that greater is better: the metric value for a
+#' metric to maximize and its negative for a metric to minimize (see
+#' [as_metric()]).
 #'
 #' @param x,object A `sharedimp_result`.
 #' @param ... Passed on to the tibble print method.
 #'
-#' @return `fold_results()` returns a tibble with one row per (feature, fold)
-#'   and columns `feature`, `id`, `id2`, `metric_full`, `metric_reduced`,
-#'   `importance`, `error`, and `direction` when it was requested.
+#' @return `fold_results()` returns a tibble with one row per (split, feature),
+#'   ordered by split and then by feature, with the common columns `feature`,
+#'   `split` (1-based index in generation order), `n_train`, `n_test`,
+#'   `score_full`, `score_reduced`, `importance`, followed by the R-specific
+#'   columns `id`, `id2` (`rsample` labels) and `error` (`NA` unless the
+#'   learner failed on that split).
 #'   `as.data.frame()` returns the `importance` table as a plain data frame.
 #' @name sharedimp_result
 #' @examples
@@ -21,7 +36,7 @@
 #' fold_results(res)
 NULL
 
-new_sharedimp_result <- function(importance, folds, metric, task, learner, direction,
+new_sharedimp_result <- function(importance, folds, metric, task, learner,
                                  n, p, v, repeats, seed, levels, resampling, call) {
   structure(
     list(
@@ -30,7 +45,6 @@ new_sharedimp_result <- function(importance, folds, metric, task, learner, direc
       metric = metric,
       task = task,
       learner = learner,
-      direction = direction,
       n = n,
       p = p,
       v = v,
@@ -64,14 +78,14 @@ print.sharedimp_result <- function(x, ...) {
   cat("\n")
   cat(sprintf("  learner:    %s\n", x$learner))
   cat(sprintf(
-    "  metric:     %s (%s); importance = %s(full - reduced)\n",
+    "  metric:     %s (%s); score = %s%s, importance = score_full - score_reduced\n",
     x$metric$name, x$metric$direction,
-    if (x$metric$direction == "maximize") "+" else "-"
+    if (x$metric$direction == "maximize") "" else "-", x$metric$name
   ))
   cat(sprintf("  resampling: %s\n", x$resampling))
   n_fail <- sum(!is.na(x$folds$error))
   if (n_fail > 0L) {
-    cat(sprintf("  failures:   %d of %d (feature, fold) fits failed\n", n_fail, nrow(x$folds)))
+    cat(sprintf("  failures:   %d of %d (feature, split) fits failed\n", n_fail, nrow(x$folds)))
   }
   cat("\n")
   print(x$importance, ...)

@@ -27,7 +27,8 @@ test_that("user-supplied yardstick metrics work, including custom ones", {
   r_mae <- shared_importance(d$x, d$y, learner = ols_learner(), metric = yardstick::mae, resamples = folds)
   expect_identical(r_mae$metric$name, "yardstick::mae")
   fr <- fold_results(r_mae)
-  expect_equal(fr$importance, fr$metric_reduced - fr$metric_full)
+  expect_equal(fr$importance, fr$score_full - fr$score_reduced)
+  expect_true(all(fr$score_full <= 0))
 
   # a maximize metric defined by the user: negative MAE
   neg_mae <- yardstick::new_numeric_metric(
@@ -52,8 +53,9 @@ test_that("user-supplied yardstick metrics work, including custom ones", {
 test_that("learner failures become NA with a warning, or abort on request", {
   flaky <- sharedimp_learner(
     fit = function(x, y) {
-      # fail only on the *full* representation of anchor x2 (4 columns, x2 first)
-      if (ncol(x) == 4L && colnames(x)[1] == "x2") stop("boom on anchor x2")
+      # fail only on the *full* representation of anchor x2: 4 columns, and x2
+      # is the raw (uncentred) column while the residualized ones have mean 0
+      if (ncol(x) == 4L && abs(mean(x[, "x2"])) > 1e-8) stop("boom on anchor x2")
       mean(y)
     },
     predict = function(model, x) rep(model, nrow(x)),
@@ -67,8 +69,9 @@ test_that("learner failures become NA with a warning, or abort on request", {
   )
   imp <- res$importance
   expect_true(is.na(imp$importance[imp$feature == "x2"]))
-  expect_identical(imp$n_folds[imp$feature == "x2"], 0L)
-  expect_identical(imp$n_folds[imp$feature == "x1"], 4L)
+  expect_identical(imp$n_splits[imp$feature == "x2"], 0L)
+  expect_identical(imp$n_splits[imp$feature == "x1"], 4L)
+  expect_true(is.na(imp$score_full[imp$feature == "x2"]))
   fr <- fold_results(res)
   expect_identical(sum(!is.na(fr$error)), 4L)
   expect_match(fr$error[fr$feature == "x2"][1], "boom on anchor x2")

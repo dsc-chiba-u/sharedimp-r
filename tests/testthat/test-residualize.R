@@ -65,17 +65,18 @@ test_that("full and reduced representations follow the specification", {
   train <- x[1:4, ]
   assess <- x[5:6, ]
   rep <- build_representations(train, assess, "b")
-  expect_identical(colnames(rep$full_train), c("b", "a", "c"))
-  expect_identical(colnames(rep$full_assess), c("b", "a", "c"))
+  # anchor stays in its original (second) position
+  expect_identical(colnames(rep$full_train), c("a", "b", "c"))
+  expect_identical(colnames(rep$full_assess), c("a", "b", "c"))
   expect_identical(colnames(rep$reduced_train), c("a", "c"))
   expect_identical(colnames(rep$reduced_assess), c("a", "c"))
   # anchor column is raw (not centred)
   expect_equal(unname(rep$full_train[, "b"]), unname(train[, "b"]))
   expect_equal(unname(rep$full_assess[, "b"]), unname(assess[, "b"]))
-  # reduced is the full representation without its first column
-  expect_equal(rep$reduced_train, rep$full_train[, -1, drop = FALSE])
-  expect_equal(rep$reduced_assess, rep$full_assess[, -1, drop = FALSE])
-  expect_identical(rep$dropped, character(0))
+  # reduced is the full representation without the anchor column
+  expect_equal(rep$reduced_train, rep$full_train[, -2, drop = FALSE])
+  expect_equal(rep$reduced_assess, rep$full_assess[, -2, drop = FALSE])
+  expect_false(any(rep$coefs$collinear))
 })
 
 test_that("constant anchor gives zero slopes, centred columns and a classed warning", {
@@ -89,16 +90,15 @@ test_that("constant anchor gives zero slopes, centred columns and a classed warn
   expect_equal(unname(colMeans(r)), c(0, 0))
 })
 
-test_that("exact duplicate of the anchor yields a dropped constant residual column", {
+test_that("exact duplicate of the anchor yields an exactly-zero residual column that is kept", {
   x <- tiny_x()
   x <- cbind(x, a2 = x[, "a"])
   rep <- build_representations(x[1:4, ], x[5:6, ], "a")
-  expect_identical(rep$dropped, "a2")
-  expect_identical(colnames(rep$full_train), c("a", "b", "c"))
-  expect_identical(colnames(rep$reduced_assess), c("b", "c"))
-  rep_keep <- build_representations(x[1:4, ], x[5:6, ], "a", drop_constant = FALSE)
-  expect_identical(colnames(rep_keep$reduced_train), c("b", "c", "a2"))
-  expect_equal(unname(rep_keep$reduced_train[, "a2"]), rep(0, 4))
+  expect_identical(unname(rep$coefs$collinear), c(FALSE, FALSE, TRUE))
+  expect_identical(colnames(rep$full_train), c("a", "b", "c", "a2"))
+  expect_identical(colnames(rep$reduced_assess), c("b", "c", "a2"))
+  expect_identical(unname(rep$reduced_train[, "a2"]), rep(0, 4))
+  expect_identical(unname(rep$reduced_assess[, "a2"]), rep(0, 2))
 })
 
 test_that("single-predictor input gives empty reduced representations", {

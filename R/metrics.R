@@ -4,26 +4,31 @@
 #' `metric` argument accepts a built-in metric name or any `yardstick` metric
 #' function (class `numeric_metric`, `class_metric`, or `prob_metric`) whose
 #' direction is `"maximize"` or `"minimize"`. The direction determines the
-#' sign convention: importance is `+(full - reduced)` for metrics to maximize
-#' and `-(full - reduced)` for metrics to minimize, so that a positive value
-#' always means that keeping the anchor feature predicts better.
+#' orientation of the reported *scores*: the metric value for metrics to
+#' maximize and its negative for metrics to minimize, so that
+#' `importance = score_full - score_reduced` is positive whenever keeping the
+#' anchor feature predicts better.
 #'
-#' Built-in names:
+#' Built-in names (the common names of the R/Python specification, with the
+#' `yardstick` function and the matching scikit-learn scorer):
 #'
-#' | name | task | direction |
-#' |---|---|---|
-#' | `"mse"` (default) | regression | minimize |
-#' | `"rmse"` | regression | minimize |
-#' | `"mae"` | regression | minimize |
-#' | `"rsq"` | regression | maximize |
-#' | `"mn_log_loss"` (default) | classification | minimize |
-#' | `"accuracy"` | classification | maximize |
-#' | `"roc_auc"` | classification | maximize |
+#' | name | task | direction | yardstick | scikit-learn |
+#' |---|---|---|---|---|
+#' | `"mse"` (default) | regression | minimize | `mse` (this package) | `neg_mean_squared_error` |
+#' | `"rmse"` | regression | minimize | `rmse` | `neg_root_mean_squared_error` |
+#' | `"mae"` | regression | minimize | `mae` | `neg_mean_absolute_error` |
+#' | `"r2"` | regression | maximize | `rsq_trad` (1 - SS_res / SS_tot) | `r2` |
+#' | `"rsq"` | regression | maximize | `rsq` (squared Pearson correlation) | none built in |
+#' | `"log_loss"` (default) | classification | minimize | `mn_log_loss` | `neg_log_loss` |
+#' | `"accuracy"` | classification | maximize | `accuracy` | `accuracy` |
+#' | `"roc_auc"` | classification | maximize | `roc_auc` (binary; Hand-Till for multiclass) | `roc_auc` / `roc_auc_ovo` |
 #'
-#' `"mse"` is the mean squared error, implemented as a `yardstick` metric
-#' because `yardstick` does not ship one. For binary tasks the first level of
-#' `y` is the event level of probability metrics; for multiclass tasks
-#' `"roc_auc"` uses the Hand-Till estimator (the `yardstick` default).
+#' The `yardstick` names `"rsq_trad"` and `"mn_log_loss"` are accepted as
+#' aliases of `"r2"` and `"log_loss"`. `"mse"` is implemented here because
+#' `yardstick` does not ship a mean squared error. For binary tasks the first
+#' level of `y` is the event level of probability metrics (log loss and AUC do
+#' not depend on this choice); for multiclass tasks `"roc_auc"` uses the
+#' Hand-Till estimator.
 #'
 #' @param metric A metric name or a `yardstick` metric function.
 #' @param task `"regression"` or `"classification"`.
@@ -92,19 +97,22 @@ builtin_metric <- function(name) {
     mse = mse,
     rmse = yardstick::rmse,
     mae = yardstick::mae,
+    r2 = yardstick::rsq_trad,
+    rsq_trad = yardstick::rsq_trad,
     rsq = yardstick::rsq,
+    log_loss = yardstick::mn_log_loss,
     mn_log_loss = yardstick::mn_log_loss,
     accuracy = yardstick::accuracy,
     roc_auc = yardstick::roc_auc,
     abort(c(
       sprintf("Unknown metric \"%s\".", name),
-      "i" = "Built-in metrics: mse, rmse, mae, rsq, mn_log_loss, accuracy, roc_auc."
+      "i" = "Built-in metrics: mse, rmse, mae, r2, rsq, log_loss, accuracy, roc_auc."
     ))
   )
 }
 
 default_metric <- function(task) {
-  if (task == "regression") "mse" else "mn_log_loss"
+  if (task == "regression") "mse" else "log_loss"
 }
 
 mse_vec <- function(truth, estimate, na_rm = TRUE, case_weights = NULL, ...) {

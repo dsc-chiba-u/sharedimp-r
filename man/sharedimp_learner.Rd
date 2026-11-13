@@ -31,8 +31,10 @@ always derived by \code{\link[=shared_importance]{shared_importance()}} as the a
 \itemize{
 \item a string: \code{"rand_forest"} (default; \code{ranger} with 500 trees and
 \code{min_n = 5}, \code{mtry = floor(sqrt(ncol(x)))}) or \code{"linear"} (ordinary least
-squares, logistic regression, or multinomial logistic regression via
-\code{nnet}, depending on the task);
+squares via \code{stats::lm.fit()}, unpenalized logistic regression via
+\code{stats::glm.fit()}, or multinomial logistic regression via
+\code{nnet::multinom()}, depending on the task; aliased coefficients are set
+to zero);
 \item a \code{parsnip} model specification whose mode matches the task, used as is
 (its hyperparameters are fixed; nothing is tuned);
 \item an object created by \code{sharedimp_learner()}.

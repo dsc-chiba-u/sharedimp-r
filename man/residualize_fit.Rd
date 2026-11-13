@@ -10,7 +10,7 @@ residualize_fit(x, anchor)
 
 residualize_apply(x, coefs)
 
-build_representations(x_train, x_assess, anchor, drop_constant = TRUE)
+build_representations(x_train, x_assess, anchor)
 }
 \arguments{
 \item{x}{A numeric matrix (or data frame of numeric columns) with column
@@ -21,26 +21,22 @@ names. For \code{residualize_fit()} these are the training rows.}
 \item{coefs}{An object returned by \code{residualize_fit()}.}
 
 \item{x_train, x_assess}{Training and assessment rows with identical columns.}
-
-\item{drop_constant}{Should residualized columns that are constant on the
-training rows (for example the residual of an exact duplicate of the
-anchor) be dropped from both representations? Default \code{TRUE}, as in the
-specification.}
 }
 \value{
 \code{residualize_fit()} returns a list of class \code{sharedimp_residualization}
 with elements \code{anchor} (column name), \code{features} (names of the other
-columns), \code{intercept} and \code{slope} (named numeric vectors, one entry per
-other column), and \code{constant_anchor} (logical).
+columns, in their original order), \code{intercept} and \code{slope} (named numeric
+vectors, one entry per other column), \code{collinear} (named logical vector,
+\code{TRUE} for columns whose residual is fixed at zero), \code{constant_anchor}
+(logical) and \code{n_train}.
 
 \code{residualize_apply()} returns a numeric matrix with one column per entry
 of \code{coefs$features}, in that order.
 
 \code{build_representations()} returns a list with \code{full_train}, \code{full_assess}
-(anchor column first, then residualized columns), \code{reduced_train},
-\code{reduced_assess} (residualized columns only), \code{coefs}, and \code{dropped} (names
-of residualized columns removed because they were constant on the training
-rows).
+(all \code{p} columns in the original order, the anchor raw and in its original
+position, the others residualized), \code{reduced_train}, \code{reduced_assess} (the
+same without the anchor column) and \code{coefs}.
 }
 \description{
 \code{residualize_fit()} regresses every column of \code{x} except the anchor on the
@@ -55,18 +51,32 @@ representations used by \code{\link[=shared_importance]{shared_importance()}}.
 For anchor \code{i} and every other column \code{j},
 \code{b_j = Cov(x_i, x_j) / Var(x_i)} and \code{a_j = mean(x_j) - b_j * mean(x_i)},
 both computed on the rows passed to \code{residualize_fit()}. The residualized
-column is \code{x_j - a_j - b_j * x_i}. If the anchor is constant on those rows,
-all slopes are set to zero, the intercepts become column means, and a
-warning is raised. No noise is ever injected.
+column is \code{x_j - a_j - b_j * x_i}.
+
+Two deterministic rules cover degenerate cases (specification Section 5.1):
+\itemize{
+\item If the anchor has zero sum of squares about its mean on the fitting rows
+(it is constant), all slopes are set to zero, the intercepts become the
+column means, and a warning of class \code{sharedimp_constant_anchor} is
+raised.
+\item If a column \code{j} is (numerically) an exact affine function of the anchor on
+the fitting rows, i.e. its residual sum of squares is at most \code{1e-10}
+times its total sum of squares, it is flagged in \code{collinear} and its
+residual is set to exactly \code{0} in \code{residualize_apply()}, for fitting and
+new rows alike. The column is kept, so the representations always have
+\code{p} and \code{p - 1} columns.
+}
+
+No noise is ever injected and no column is ever dropped.
 }
 \examples{
 set.seed(1)
 x <- cbind(a = rnorm(20), b = rnorm(20), c = rnorm(20))
 x[, "b"] <- 2 * x[, "a"] + x[, "b"]
-cf <- residualize_fit(x[1:15, ], anchor = "a")
+cf <- residualize_fit(x[1:15, ], anchor = "b")
 cf$slope
 r <- residualize_apply(x[16:20, ], cf)
-rep <- build_representations(x[1:15, ], x[16:20, ], anchor = "a")
-colnames(rep$full_train)
+rep <- build_representations(x[1:15, ], x[16:20, ], anchor = "b")
+colnames(rep$full_train) # anchor "b" stays in the second position
 colnames(rep$reduced_train)
 }

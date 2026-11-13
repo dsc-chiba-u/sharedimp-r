@@ -2,33 +2,36 @@
 #'
 #' For every anchor feature, `shared_importance()` residualizes the other
 #' predictors on the anchor using ordinary least squares coefficients estimated
-#' on the training rows of each resampling fold, applies the same coefficients
+#' on the training rows of each resampling split, applies the same coefficients
 #' to the assessment rows, fits the learner to the *full* representation
 #' (anchor plus residualized others) and to the *reduced* representation
 #' (residualized others only), and compares their assessment-set performance.
 #' This is the linear-regression variant of ultra-marginal feature importance
 #' (UMFI-LR) of Janssen, Guan and Robeva (2023), evaluated out of sample with
-#' paired folds.
+#' paired splits. The R and Python packages follow one common specification
+#' (`docs/specification.md` in the source repository).
 #'
-#' @section Sign convention:
-#' Let `s = +1` if the metric is to be maximized and `s = -1` if it is to be
-#' minimized. For each fold, `importance = s * (metric_full - metric_reduced)`,
-#' so a positive value always means that keeping the anchor predicts better
-#' than the residualized others alone. Negative values are reported as they
-#' are; they are never truncated to zero. The reported importance is the mean
-#' over folds; `sd` is the sample standard deviation of the fold values and is
-#' a descriptive quantity only, not a standard error.
+#' @section Scores and sign convention:
+#' Every metric is reported as a *score* oriented so that greater is better:
+#' the metric value itself for a metric to maximize (`"r2"`, `"accuracy"`,
+#' `"roc_auc"`, ...), and its negative for a metric to minimize (`"mse"`,
+#' `"rmse"`, `"mae"`, `"log_loss"`, ...). For each split,
+#' `importance = score_full - score_reduced`, so a positive value always means
+#' that keeping the anchor predicts better than the residualized others alone.
+#' Negative values are reported as they are; they are never truncated to zero.
+#' The reported importance is the mean over splits; `importance_std` is the
+#' sample standard deviation of the split values and is a descriptive quantity
+#' only, not a standard error.
 #'
 #' @section What the numbers are not:
 #' The values are out-of-sample predictive gains for a particular learner,
 #' metric and resampling scheme. They are not causal effects, not regression
 #' coefficients and not conditional effects, and the package deliberately
-#' provides no confidence intervals or p-values. See `docs/specification.md`
-#' in the source repository for the complete specification, including how the
-#' computation differs from the reference UMFI-LR implementation.
+#' provides no confidence intervals or p-values.
 #'
 #' @param x A numeric matrix or a data frame whose columns are all numeric.
-#'   Missing values are not allowed.
+#'   Missing values are not allowed. A single column is allowed; the reduced
+#'   model is then the null model (training mean or class frequencies).
 #' @param y The response: a numeric vector for regression or a factor for
 #'   classification (binary or multiclass; the first level is the event level
 #'   for probability metrics). Character vectors are converted to factors.
@@ -36,8 +39,8 @@
 #'   specification, or a [sharedimp_learner()]. Hyperparameters are fixed; no
 #'   tuning is performed. See [sharedimp_learner()] for details.
 #' @param metric A built-in metric name or a `yardstick` metric function. The
-#'   defaults are `"mse"` for regression and `"mn_log_loss"` for
-#'   classification. See [as_metric()].
+#'   defaults are `"mse"` for regression and `"log_loss"` for classification.
+#'   See [as_metric()].
 #' @param task `"auto"` (default: numeric `y` is regression, factor `y` is
 #'   classification), `"regression"`, or `"classification"`.
 #' @param v,repeats Number of folds and repeats for `rsample::vfold_cv()`,
@@ -46,29 +49,24 @@
 #' @param resamples Optional explicit resampling: an `rsample` `rset` built on
 #'   data with `nrow(x)` rows, or an integer vector of length `nrow(x)` whose
 #'   unique values label the assessment fold of each row. Overrides `v` and
-#'   `repeats`.
+#'   `repeats`. Explicit splits are the mechanism for comparisons with the
+#'   Python implementation.
 #' @param features Optional names or indices of the anchor features to
 #'   evaluate. Default: all columns of `x`.
 #' @param seed Optional integer. When supplied, fold generation and any
 #'   stochastic learner run under a local RNG state seeded with `seed`, and the
 #'   caller's RNG state is restored afterwards.
-#' @param direction Logical. If `TRUE`, also report the direction diagnostic:
-#'   the correlation, on each assessment fold, between the anchor's values and
-#'   the difference between the full and reduced predictions (probability of
-#'   the first level for binary classification; `NA` for multiclass). It is a
-#'   descriptive summary only and must not be read as a causal or conditional
-#'   effect.
-#' @param on_error `"warn"` (default) records a learner failure on a fold as
-#'   `NA`, aggregates over the remaining folds and warns; `"error"` stops at
+#' @param on_error `"warn"` (default) records a learner failure on a split as
+#'   `NA`, aggregates over the remaining splits and warns; `"error"` stops at
 #'   the first failure.
 #' @param verbose Print progress messages?
 #'
 #' @return An object of class `sharedimp_result` (see [sharedimp_result]) with
-#'   elements `importance` (tibble: `feature`, `importance`, `sd`, `n_folds`,
-#'   and `direction` when requested), `folds` (per-fold paired metrics;
-#'   see [fold_results()]), `metric`, `task`, `learner`, `direction`, and
-#'   bookkeeping fields `n`, `p`, `v`, `repeats`, `seed`, `levels`,
-#'   `resampling`, `call`.
+#'   elements `importance` (tibble with the common columns `feature`,
+#'   `importance`, `importance_std`, `score_full`, `score_reduced`,
+#'   `n_splits`), `folds` (per-split paired scores; see [fold_results()]),
+#'   `metric`, `task`, `learner`, and bookkeeping fields `n`, `p`, `v`,
+#'   `repeats`, `seed`, `levels`, `resampling`, `call`.
 #'
 #' @references
 #' Janssen, J., Guan, V. and Robeva, E. (2023). Ultra-marginal Feature
@@ -87,7 +85,7 @@
 #' res
 #' fold_results(res)
 #'
-#' # Binary classification with log loss
+#' # Binary classification with accuracy
 #' yb <- factor(ifelse(y > median(y), "high", "low"))
 #' shared_importance(x, yb, learner = "linear", metric = "accuracy", v = 5, seed = 1)
 #'
@@ -105,16 +103,12 @@ shared_importance <- function(x, y,
                               resamples = NULL,
                               features = NULL,
                               seed = NULL,
-                              direction = FALSE,
                               on_error = c("warn", "error"),
                               verbose = FALSE) {
   call <- match.call()
   task <- rlang::arg_match(task)
   on_error <- rlang::arg_match(on_error)
   metric_label <- if (is.null(metric) || is.character(metric)) NULL else rlang::as_label(substitute(metric))
-  if (!rlang::is_bool(direction)) {
-    abort("`direction` must be `TRUE` or `FALSE`.")
-  }
   if (!rlang::is_bool(verbose)) {
     abort("`verbose` must be `TRUE` or `FALSE`.")
   }
@@ -136,7 +130,7 @@ shared_importance <- function(x, y,
     folds <- make_folds(resamples, v, repeats, y, task, n)
     run_shared_importance(
       x, y, task, levels, lrn, null_lrn, metric, anchors, folds,
-      direction, on_error, verbose, seed, v, repeats, call
+      on_error, verbose, seed, v, repeats, call
     )
   })
 }
@@ -255,24 +249,31 @@ check_folds <- function(folds, call) {
   invisible(TRUE)
 }
 
+# Main loop: split-major, anchor-minor, matching the row order of the common
+# per-split table (specification Section 11.2).
 run_shared_importance <- function(x, y, task, levels, lrn, null_lrn, metric, anchors, folds,
-                                  direction, on_error, verbose, seed, v, repeats, call) {
+                                  on_error, verbose, seed, v, repeats, call) {
   feature_names <- colnames(x)[anchors]
+  n_anchors <- length(anchors)
   n_folds <- length(folds)
-  n_rows <- length(anchors) * n_folds
+  n_rows <- n_anchors * n_folds
 
-  out_feature <- rep(feature_names, each = n_folds)
-  out_id <- rep(vapply(folds, `[[`, character(1), "id"), times = length(anchors))
-  out_id2 <- rep(vapply(folds, `[[`, character(1), "id2"), times = length(anchors))
+  out_feature <- rep(feature_names, times = n_folds)
+  out_split <- rep(seq_len(n_folds), each = n_anchors)
+  out_n_train <- rep(vapply(folds, function(f) length(f$train), integer(1)), each = n_anchors)
+  out_n_test <- rep(vapply(folds, function(f) length(f$assess), integer(1)), each = n_anchors)
+  out_id <- rep(vapply(folds, `[[`, character(1), "id"), each = n_anchors)
+  out_id2 <- rep(vapply(folds, `[[`, character(1), "id2"), each = n_anchors)
   out_full <- rep(NA_real_, n_rows)
   out_reduced <- rep(NA_real_, n_rows)
   out_error <- rep(NA_character_, n_rows)
-  out_dir <- rep(NA_real_, n_rows)
 
   learner_warnings <- character(0)
   constant_anchors <- character(0)
+  # Scores are oriented so that greater is better (specification Section 9).
+  sign <- if (metric$direction == "maximize") 1 else -1
 
-  fit_predict <- function(x_train, x_assess) {
+  fit_predict <- function(x_train, y_train, x_assess) {
     l <- if (ncol(x_train) == 0L) null_lrn else lrn
     model <- l$fit(x_train, y_train)
     pred <- l$predict(model, x_assess)
@@ -280,19 +281,23 @@ run_shared_importance <- function(x, y, task, levels, lrn, null_lrn, metric, anc
   }
 
   row <- 0L
-  for (a in seq_along(anchors)) {
-    i <- anchors[a]
+  for (k in seq_len(n_folds)) {
+    f <- folds[[k]]
     if (verbose) {
-      inform(sprintf("Feature %d/%d: %s", a, length(anchors), feature_names[a]))
+      inform(sprintf("Split %d/%d (%s)", k, n_folds, f$id))
     }
-    for (k in seq_len(n_folds)) {
+    x_train <- x[f$train, , drop = FALSE]
+    x_assess <- x[f$assess, , drop = FALSE]
+    y_train <- y[f$train]
+    y_assess <- y[f$assess]
+    single_class <- task == "classification" && length(unique(y_train)) < 2L
+
+    for (a in seq_len(n_anchors)) {
       row <- row + 1L
-      f <- folds[[k]]
-      y_train <- y[f$train]
-      y_assess <- y[f$assess]
+      i <- anchors[a]
 
       rep <- withCallingHandlers(
-        build_representations_impl(x[f$train, , drop = FALSE], x[f$assess, , drop = FALSE], i),
+        build_representations_impl(x_train, x_assess, i),
         sharedimp_constant_anchor = function(w) {
           constant_anchors <<- union(constant_anchors, feature_names[a])
           invokeRestart("muffleWarning")
@@ -302,19 +307,15 @@ run_shared_importance <- function(x, y, task, levels, lrn, null_lrn, metric, anc
       result <- tryCatch(
         withCallingHandlers(
           {
-            if (task == "classification" && length(unique(y_train)) < 2L) {
+            if (single_class) {
               abort("training fold contains a single class")
             }
-            pred_full <- fit_predict(rep$full_train, rep$full_assess)
-            pred_reduced <- fit_predict(rep$reduced_train, rep$reduced_assess)
-            m_full <- evaluate_metric(metric, y_assess, pred_full, levels)
-            m_reduced <- evaluate_metric(metric, y_assess, pred_reduced, levels)
-            d <- if (direction) {
-              compute_direction(rep$full_assess[, 1L], pred_full, pred_reduced, task, levels)
-            } else {
-              NA_real_
-            }
-            list(full = m_full, reduced = m_reduced, direction = d)
+            pred_full <- fit_predict(rep$full_train, y_train, rep$full_assess)
+            pred_reduced <- fit_predict(rep$reduced_train, y_train, rep$reduced_assess)
+            list(
+              full = sign * evaluate_metric(metric, y_assess, pred_full, levels),
+              reduced = sign * evaluate_metric(metric, y_assess, pred_reduced, levels)
+            )
           },
           warning = function(w) {
             learner_warnings <<- c(learner_warnings, conditionMessage(w))
@@ -329,7 +330,7 @@ run_shared_importance <- function(x, y, task, levels, lrn, null_lrn, metric, anc
         if (on_error == "error") {
           abort(
             c(
-              sprintf("Learner failed for feature `%s`, fold %s.", feature_names[a], f$id),
+              sprintf("Learner failed for feature `%s`, split %d (%s).", feature_names[a], k, f$id),
               "x" = msg
             ),
             call = call
@@ -339,38 +340,28 @@ run_shared_importance <- function(x, y, task, levels, lrn, null_lrn, metric, anc
       } else {
         out_full[row] <- result$full
         out_reduced[row] <- result$reduced
-        out_dir[row] <- result$direction
       }
     }
   }
 
-  sign <- if (metric$direction == "maximize") 1 else -1
-  out_imp <- sign * (out_full - out_reduced)
-
   folds_tbl <- tibble::tibble(
     feature = out_feature,
+    split = out_split,
+    n_train = out_n_train,
+    n_test = out_n_test,
+    score_full = out_full,
+    score_reduced = out_reduced,
+    importance = out_full - out_reduced,
     id = out_id,
     id2 = out_id2,
-    metric_full = out_full,
-    metric_reduced = out_reduced,
-    importance = out_imp,
     error = out_error
   )
-  if (direction) {
-    folds_tbl$direction <- out_dir
-  }
-
-  importance_tbl <- aggregate_by_feature(out_feature, feature_names, out_imp, "importance")
-  direction_tbl <- NULL
-  if (direction) {
-    direction_tbl <- aggregate_by_feature(out_feature, feature_names, out_dir, "direction")
-    importance_tbl$direction <- direction_tbl$direction
-  }
+  importance_tbl <- aggregate_by_feature(folds_tbl, feature_names)
 
   n_fail <- sum(!is.na(out_error))
   if (n_fail > 0L) {
     warn(c(
-      sprintf("%d of %d (feature, fold) fits failed and were recorded as NA.", n_fail, n_rows),
+      sprintf("%d of %d (feature, split) fits failed and were recorded as NA.", n_fail, n_rows),
       "i" = "See `fold_results()` column `error` for details."
     ))
   }
@@ -394,10 +385,9 @@ run_shared_importance <- function(x, y, task, levels, lrn, null_lrn, metric, anc
     metric = list(name = metric$name, direction = metric$direction),
     task = task,
     learner = lrn$label,
-    direction = direction_tbl,
     n = nrow(x),
     p = ncol(x),
-    v = if (is.null(attr(folds, "description"))) NA_integer_ else length(folds),
+    v = length(folds),
     repeats = repeats,
     seed = seed,
     levels = levels,
@@ -406,15 +396,23 @@ run_shared_importance <- function(x, y, task, levels, lrn, null_lrn, metric, anc
   )
 }
 
-aggregate_by_feature <- function(feature, feature_names, value, name) {
-  split_vals <- split(value, factor(feature, levels = feature_names))
-  mean_v <- vapply(split_vals, function(v) if (all(is.na(v))) NA_real_ else mean(v, na.rm = TRUE), numeric(1))
-  sd_v <- vapply(split_vals, function(v) {
-    v <- v[!is.na(v)]
-    if (length(v) < 2L) NA_real_ else stats::sd(v)
-  }, numeric(1))
-  n_v <- vapply(split_vals, function(v) sum(!is.na(v)), integer(1))
-  out <- tibble::tibble(feature = feature_names, value = unname(mean_v), sd = unname(sd_v), n_folds = unname(n_v))
-  names(out)[2L] <- name
-  out
+# One row per anchor, in `feature_names` order, aggregated over the splits
+# whose fit succeeded (specification Section 9.1).
+aggregate_by_feature <- function(folds_tbl, feature_names) {
+  grp <- factor(folds_tbl$feature, levels = feature_names)
+  ok <- !is.na(folds_tbl$importance)
+  mean_ok <- function(value) {
+    vapply(split(value[ok], grp[ok]), function(v) if (length(v) == 0L) NA_real_ else mean(v), numeric(1))
+  }
+  imp <- folds_tbl$importance
+  std <- vapply(split(imp[ok], grp[ok]), function(v) if (length(v) < 2L) NA_real_ else stats::sd(v), numeric(1))
+  n_ok <- vapply(split(ok, grp), sum, integer(1))
+  tibble::tibble(
+    feature = feature_names,
+    importance = unname(mean_ok(imp)),
+    importance_std = unname(std),
+    score_full = unname(mean_ok(folds_tbl$score_full)),
+    score_reduced = unname(mean_ok(folds_tbl$score_reduced)),
+    n_splits = unname(n_ok)
+  )
 }
