@@ -100,13 +100,16 @@ or R² gate on `b_j` (Section 12).
 
 | Case | Rule |
 |---|---|
-| Anchor constant: `S_ii = 0` (exactly) | `b_j = 0`, `a_j = mean_T(X_j)` for all `j` (the other columns are only centred). A warning names the anchor. |
-| `X_j` constant: `S_jj = 0` | `b_j = 0`, `a_j = mean_T(X_j)`; `R_j = X_j − mean_T(X_j)` (zero up to floating point on the training rows). Not flagged as collinear. |
-| `X_j` exactly collinear with the anchor: `S_jj > 0` and `SS_res_j ≤ tol · S_jj`, `tol = 1e-10`, where `SS_res_j = Σ_T (X_j − a_j − b_j X_i)²` | `R_j` is set to **exactly 0** for training and assessment rows, so that floating-point round-off of the residual cannot carry the anchor into the reduced representation. The column is **kept**. |
+| D1. Anchor constant: `S_ii = 0`, tested exactly as `max_T(X_i) = min_T(X_i)` | `b_j = 0`, `a_j = mean_T(X_j)` for all `j` (the other columns are only centred). A warning names the anchor. |
+| D2. `X_j` constant: `S_jj = 0`, tested exactly as `max_T(X_j) = min_T(X_j)` | `b_j = 0`, `a_j =` that constant; `R_j = 0` exactly on the training rows and `X_j − a_j` on the assessment rows. Not flagged as collinear. |
+| D3. `X_j` exactly collinear with the anchor: `S_jj > 0` and `SS_res_j ≤ tol · S_jj`, `tol = 1e-10`, where `SS_res_j = Σ_T (X_j − a_j − b_j X_i)²` | `R_j` is set to **exactly 0** for training and assessment rows, so that floating-point round-off of the residual cannot carry the anchor into the reduced representation. The column is **kept**. |
 
-`tol = 1e-10` is the only numerical tolerance in the algorithm. No random noise
-is ever injected and no column is ever dropped; the representations always have
-exactly `p` and `p − 1` columns.
+`tol = 1e-10` is the only numerical tolerance in the algorithm; D1 and D2 are
+exact equalities of `max` and `min` (not of a computed mean, whose
+floating-point value for a constant vector is not guaranteed to equal that
+constant), and all three rules are invariant to changes of units and origin.
+No random noise is ever injected and no column is ever dropped; the
+representations always have exactly `p` and `p − 1` columns.
 
 Rationale for keeping (not dropping) collinear columns, and the learner study
 behind it, are in Section 15.3.
@@ -247,7 +250,9 @@ Important distinctions:
   ignores bias and scale; `rsq_trad` / scikit-learn `r2_score` is the usual
   coefficient of determination. The common name `r2` means the latter. R
   accepts `"rsq_trad"` and `"mn_log_loss"` as aliases of `"r2"` and
-  `"log_loss"`.
+  `"log_loss"`. `rsq` is undefined (`NA`) when the predictions are constant on
+  the assessment rows, which is always the case for the null model (`p = 1`);
+  `r2` is undefined only when `y` is constant there.
 - Binary probability metrics never depend on which level is called the event
   as long as the matching probability column is used; R uses the first level,
   scikit-learn the second sorted class.
@@ -390,9 +395,12 @@ conditional or regression effect.
 
 ## 15. Cross-language verification record (2026-11-13)
 
-Run against `sharedimp-py` at commit `bfcb2a5` (scikit-learn 1.9.1, numpy as
-installed in its virtual environment; the Python code was only executed, not
-modified) and this R package with yardstick 1.4.0. R expectations: `tests/testthat/test-common-spec.R` and
+Run against the `sharedimp-py` **working tree** at 12:50 JST (commit
+`bfcb2a5` plus uncommitted changes that were being made concurrently on the
+Python side; the package is installed in editable mode, so the working tree is
+what ran; scikit-learn 1.9.1, numpy 2.4.6). The Python code was only executed
+from here, never modified. R side: this package with yardstick 1.4.0. A first
+run about 20 minutes earlier, during those Python edits, gave the same numbers. R expectations: `tests/testthat/test-common-spec.R` and
 `tests/testthat/test-metric-definitions.R`. Comparison script, its output and
 the learner study: `docs/parity/`.
 
@@ -464,33 +472,48 @@ learner-failure path. The alternative (dropping the column, the R draft) is
 documented here as rejected; it is not available as an option in either
 package.
 
-## 16. Required changes on the Python side (as of `bfcb2a5`)
+## 16. Required changes on the Python side
 
 Listed for the maintainers of `sharedimp-py`; nothing in that repository was
-modified from here.
+modified from here. Status column: what the uncommitted Python working tree
+contained at 12:50 JST on 2026-11-13 (its own `docs/specification.md`
+`0.2-draft`, §11), to be confirmed once it is committed.
 
 1. **Direction diagnostic.** Remove the `direction` argument of
    `shared_importance()` and the `direction` columns; keep `_direction.py`
    internal and marked experimental, or delete it (Section 13).
+   *Status: done in the working tree.*
 2. **Single predictor.** Accept `p = 1`: the reduced representation has zero
    columns and must be scored with the null model (training mean / training
    class frequencies), not with the user's estimator (Sections 3, 8.3).
+   *Status: done in the working tree (`fit_null_model`).*
 3. **Default scoring.** Default to `neg_mean_squared_error` for regressors and
    `neg_log_loss` for classifiers instead of `estimator.score` (Section 9.1),
    or document the difference prominently if `estimator.score` is kept.
+   *Status: open; the Python side documented the difference and kept
+   `estimator.score`, treating the default as an API decision to be taken
+   jointly. Parity tests always pass the metric explicitly.*
 4. **Learner failures.** Record a failed `(split, feature)` fit as `NaN` with a
    warning and aggregate over the remaining splits (`n_splits` counts the
    successful ones), with an option to raise instead (Section 10). A training
    split with a single class is such a failure.
+   *Status: open; Python propagates the exception.*
 5. **Specification pointer.** Replace the provisional
    `docs/specification.md` by a pointer to this file plus Python-specific
-   notes, as its header already proposes; drop the `0.1-provisional` label.
+   notes; drop the provisional label.
+   *Status: open, waiting for this revision to be committed (now done).*
 6. **Metric documentation.** State the scorer ↔ common-name mapping of
    Section 9.1 (`r2` = `r2`, `roc_auc` multiclass = `roc_auc_ovo` macro, log
    loss clipping depends on scikit-learn ≥ 1.5) and provide the Pearson²
    scorer for `rsq` if that metric is wanted.
+   *Status: done in the working tree (`common_scorer()`).*
 7. **Parity test.** Add the fixture of Section 15.1 (including the collinear
    variant) as a test with tolerance `1e-8` on every column of both tables.
+   *Status: done in the working tree. Its second reference set
+   (`r_reference.json`) was generated from R commit `6c5631d`, which predates
+   this revision (anchor first, dropped columns, raw metric values,
+   feature-major rows); it must be regenerated from the current R commit and
+   the compensating conversions in `tests/test_cross_language.py` removed.*
 
 Already consistent with this specification (no change needed): fold-internal
 OLS residualization with the exact-collinearity rule (`tol = 1e-10`), Full

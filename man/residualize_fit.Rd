@@ -55,10 +55,11 @@ column is \code{x_j - a_j - b_j * x_i}.
 
 Two deterministic rules cover degenerate cases (specification Section 5.1):
 \itemize{
-\item If the anchor has zero sum of squares about its mean on the fitting rows
-(it is constant), all slopes are set to zero, the intercepts become the
-column means, and a warning of class \code{sharedimp_constant_anchor} is
-raised.
+\item If the anchor is constant on the fitting rows (\code{max == min}, tested
+exactly), all slopes are set to zero, the intercepts become the column
+means, and a warning of class \code{sharedimp_constant_anchor} is raised. A
+column that is itself constant gets slope zero and its value as
+intercept.
 \item If a column \code{j} is (numerically) an exact affine function of the anchor on
 the fitting rows, i.e. its residual sum of squares is at most \code{1e-10}
 times its total sum of squares, it is flagged in \code{collinear} and its

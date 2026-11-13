@@ -1,3 +1,4 @@
+# Run 2026-11-13 12:50 JST against the sharedimp-py working tree (bfcb2a5 + uncommitted edits), scikit-learn 1.9.1
 == fixture: Python importances ==
  feature  importance  importance_std  score_full  score_reduced  n_splits
      x1   48.322880        6.171472    -0.27647     -48.599350         3

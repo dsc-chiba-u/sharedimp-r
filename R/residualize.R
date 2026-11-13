@@ -15,10 +15,11 @@
 #'
 #' Two deterministic rules cover degenerate cases (specification Section 5.1):
 #'
-#' * If the anchor has zero sum of squares about its mean on the fitting rows
-#'   (it is constant), all slopes are set to zero, the intercepts become the
-#'   column means, and a warning of class `sharedimp_constant_anchor` is
-#'   raised.
+#' * If the anchor is constant on the fitting rows (`max == min`, tested
+#'   exactly), all slopes are set to zero, the intercepts become the column
+#'   means, and a warning of class `sharedimp_constant_anchor` is raised. A
+#'   column that is itself constant gets slope zero and its value as
+#'   intercept.
 #' * If a column `j` is (numerically) an exact affine function of the anchor on
 #'   the fitting rows, i.e. its residual sum of squares is at most `1e-10`
 #'   times its total sum of squares, it is flagged in `collinear` and its
@@ -79,8 +80,10 @@ residualize_fit_impl <- function(x, i) {
   mu_other <- colMeans(others)
   mu_i <- mean(xi)
   xic <- xi - mu_i
-  ss_i <- sum(xic^2)
-  constant_anchor <- ss_i == 0
+  # Rules D1/D2 of specification Section 5.1: "zero sum of squares" is tested
+  # as exact equality of max and min, not through a computed mean, because the
+  # floating-point mean of a constant vector is not guaranteed to equal it.
+  constant_anchor <- max(xi) == min(xi)
   if (constant_anchor) {
     warn(
       sprintf(
@@ -91,11 +94,18 @@ residualize_fit_impl <- function(x, i) {
     )
     slope <- setNames(rep(0, length(features)), features)
   } else {
-    slope <- as.vector(crossprod(xic, others)) / ss_i
+    slope <- as.vector(crossprod(xic, others)) / sum(xic^2)
     names(slope) <- features
   }
+  # D2: a feature constant on the training rows gets slope 0 and its value as
+  # intercept, so its training residual is exactly zero.
+  constant_feature <- apply(others, 2L, function(v) max(v) == min(v))
+  if (any(constant_feature)) {
+    slope[constant_feature] <- 0
+    mu_other[constant_feature] <- others[1L, constant_feature]
+  }
   intercept <- mu_other - slope * mu_i
-  # Exact-collinearity rule: residual sum of squares relative to total.
+  # D3: exact-collinearity rule, residual sum of squares relative to total.
   others_c <- sweep(others, 2L, mu_other)
   ss_tot <- colSums(others_c^2)
   resid <- others_c - outer(xic, slope)

@@ -27,8 +27,9 @@ For each split and each anchor feature `i`:
 2. Residualize training and assessment rows with the **same** coefficients:
    `R_j = X_j − a_j − b_j X_i`. A column that is an exact affine function of
    the anchor on the training rows (`SS_res <= 1e-10 SS_tot`) gets a residual
-   of exactly 0 and is **kept**. A constant anchor (zero sum of squares) gets
-   slopes 0 and a warning.
+   of exactly 0 and is **kept**. A constant anchor (`max == min`, exact) gets
+   slopes 0 and a warning; a constant other column gets slope 0 and its
+   value as intercept.
 3. Full representation = `X` with the other columns replaced by their
    residuals, the anchor raw and **in its original position**; reduced
    representation = full without the anchor column. Column count is always
