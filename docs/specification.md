@@ -1,13 +1,15 @@
 # sharedimp — common algorithm specification (R / Python)
 
-Status: **v0.1, reconciled 2026-11-13.** This document is the single source of
-truth for the R package `sharedimp` (this repository) and the Python package
-`sharedimp` (`../sharedimp-py`). It supersedes the provisional Python-side
-specification (`sharedimp-py/docs/specification.md`, `0.1-provisional`), whose
-open items (its §9) are settled here. Both implementations must follow this
-document; any intentional deviation must be recorded in the deviating
-repository, never absorbed silently. Section 16 lists the changes the Python
-package still has to make; the R package implements everything below.
+Status: **v0.1, reconciled 2026-11-13; final revision after the Python-side
+review (`sharedimp-py/docs/r_side_changes.md`, third revision).** This
+document is the single source of truth for the R package `sharedimp` (this
+repository) and the Python package `sharedimp` (`../sharedimp-py`, whose
+`docs/specification.md` is a pointer to this file plus Python-specific notes
+and recorded deviations since Python commit `dd0bef0`). Both implementations
+must follow this document; any intentional deviation must be recorded in the
+deviating repository, never absorbed silently. Section 16 records the status
+of the changes that were asked of the Python package; both packages implement
+everything below.
 
 ## 1. Scope and non-claims
 
@@ -53,7 +55,7 @@ Rows of `x` and `y` are aligned by position. `n ≥ 2`.
 **Single predictor (`p = 1`).** Allowed. The reduced representation then has
 zero columns and the reduced model is the null model of Section 8.3. The
 importance is the out-of-sample gain of the learner over the null model.
-(Python currently rejects `p = 1`; see Section 16.)
+(Both packages accept `p = 1`; Python since commit `febd7ea`.)
 
 ## 4. Resampling
 
@@ -146,9 +148,15 @@ where `prediction` is a numeric vector (regression) or an `n × K` matrix of
 class probabilities with columns in the level order of `y` (classification).
 Predicted class labels are **always** derived as the argmax of the probability
 matrix (ties → first level); the learner's own class prediction, if any, is
-ignored. Non-finite predictions are a learner failure. If a level of `y` is
-absent from a training set (but at least two levels are present), the learner
-is fitted on the levels present and the missing level receives probability 0.
+ignored. Non-finite predictions are a learner failure in R
+(`check_prediction()`); Python does not inspect predictions (scikit-learn
+scorers receive the fitted model), so a non-finite prediction surfaces either
+as an exception from the scorer (recorded as a failure) or as a non-finite
+score that is excluded from the aggregation with an empty `error` — the
+summary numbers agree, only the `error` text can differ (recorded deviation
+in the Python notes §4.3). If a level of `y` is absent from a training set
+(but at least two levels are present), the learner is fitted on the levels
+present and the missing level receives probability 0.
 
 Hyperparameters are fixed: no tuning is performed inside `shared_importance()`.
 
@@ -160,14 +168,27 @@ Hyperparameters are fixed: no tuning is performed inside `shared_importance()`.
 | binary | unpenalized logistic regression (R: `stats::glm.fit()` binomial, event = first level; Python: `LogisticRegression(penalty=None)`) |
 | multiclass | unpenalized multinomial logistic regression (R: `nnet::multinom(maxit = 500)`; Python: `LogisticRegression(penalty=None)` multinomial) |
 
-Rank deficiency: aliased OLS/logistic coefficients are set to zero so that
-predictions remain finite. For an exactly-zero column (Section 5.1) this
-coincides with scikit-learn's minimum-norm least squares solution (coefficient
-0), which is why the parity fixture with a duplicated column agrees
-(Section 15.1). For other rank-deficient designs the two conventions may
-differ in the coefficients but not in the fitted values, so scores agree.
-Non-convergence or separation is a learner failure only if it produces
-non-finite predictions.
+**Rank deficiency.** R's `lm.fit` detects rank deficiency by pivoted QR with
+relative tolerance `1e-7` and the built-in learner sets aliased coefficients
+to zero, so predictions stay finite. A design can be rank-deficient even
+though rule D3 did not fire: D3 removes collinearity *with the anchor* only,
+and two other features that are collinear *with each other* (e.g. a feature
+and its affine copy, when neither is the anchor) stay collinear after
+residualization. Fitted values are a projection onto the column space, so
+every least-squares solver that **recognises** the deficiency gives the same
+predictions whatever its coefficient convention (R aliases a column;
+NumPy/SciPy return the minimum-norm solution). A solver that does **not**
+recognise a singular value at machine epsilon inverts it and the predictions
+change by amounts of order 0.1 (Section 15.4). Whether such a singular value
+is recognised depends on the library and its version; the specification
+therefore makes **no claim that arbitrary learners give identical predictions
+on rank-deficient designs**. Cross-language parity tests on rank-deficient
+designs must use an OLS learner with an explicit rank decision: R
+`lm.fit`; Python a least-squares solve with an explicit relative tolerance
+(e.g. `numpy.linalg.lstsq(rcond = 1e-7)` or an SVD minimum-norm fit truncating
+singular values below `1e-7` of the largest), not `LinearRegression` with
+library defaults. Non-convergence or separation is a learner failure only if
+it produces non-finite predictions.
 
 ### 8.2 Built-in learner `"rand_forest"` (R default)
 
@@ -238,9 +259,9 @@ on identical inputs (Section 15.2): every pair below agrees to ≤ 3e-15.
 | `rmse` | regression | minimize | sqrt(mse) | `rmse` | `neg_root_mean_squared_error` |
 | `mae` | regression | minimize | mean absolute error | `mae` | `neg_mean_absolute_error` |
 | `r2` | regression | maximize | `1 − SS_res / SS_tot` (coefficient of determination) | `rsq_trad` | `r2` |
-| `rsq` | regression | maximize | squared Pearson correlation of truth and estimate | `rsq` | none built in; `make_scorer(lambda y, p: np.corrcoef(y, p)[0, 1]**2)` |
-| `log_loss` (**default for classification**) | classification | minimize | multinomial log loss: mean of `−log p_true`, probabilities clipped to `[ε, 1 − ε]` with `ε = 2^−52` (machine epsilon) | `mn_log_loss` | `neg_log_loss` (scikit-learn ≥ 1.5 clips at machine epsilon; earlier versions used `1e-15`) |
-| `accuracy` | classification | maximize | fraction of correct argmax labels | `accuracy` | `accuracy` |
+| `rsq` | regression | maximize | squared Pearson correlation of truth and estimate; undefined (`NA`/`NaN`) when truth or estimate is constant | `rsq` | `common_scorer("rsq")` (no scikit-learn name) |
+| `log_loss` (**default for classification**) | classification | minimize | multinomial log loss: mean of `−log p_true`, probabilities clipped to `[ε, 1 − ε]` with `ε = 2^−52` (machine epsilon) | `mn_log_loss` | `neg_log_loss` or `common_scorer("log_loss")`, which clips at `2^−52` itself (scikit-learn's own `log_loss` has clipped at machine epsilon at least since 1.3.2, the minimum version the Python package supports; a zero probability contributes `−log(2^−52) = 36.04`) |
+| `accuracy` | classification | maximize | fraction of correct **argmax** labels (ties → first level) | `accuracy` on argmax labels | `common_scorer("accuracy")`. scikit-learn's `"accuracy"` scorer uses the estimator's `predict`, which equals the argmax of `predict_proba` for most but not all classifiers (not for `SVC(probability=True)`) |
 | `roc_auc` | binary | maximize | Mann–Whitney AUC (ties count ½) | `roc_auc` (event = first level) | `roc_auc` (positive = second sorted class). Identical value: swapping the event class and its probability column leaves the AUC unchanged |
 | `roc_auc` | multiclass | maximize | Hand & Till (2001): mean over class pairs of ½(A(i\|j) + A(j\|i)) | `roc_auc` (`hand_till`, the default) | `roc_auc_ovo` with `average="macro"`. **Not** `roc_auc_ovr` (one-vs-rest differs) |
 
@@ -260,10 +281,10 @@ Important distinctions:
   implementation uses `mse` for regression and multinomial `log_loss` for
   classification, in both languages. Both are smooth, strictly proper scores
   that decompose over observations. `r2` and `accuracy` remain available by
-  name. (Python implements this since commit `692c3fe`:
-  `scoring=None` resolves to `neg_mean_squared_error` for regressors and to
-  `common_scorer("log_loss")` for classifiers.) Parity tests pass the metric
-  explicitly regardless.
+  name. (Python implements this since commit `399bb20`: `scoring=None`
+  resolves to `neg_mean_squared_error` for regressors and to
+  `common_scorer("log_loss")`, reported as `neg_log_loss`, for classifiers.)
+  Parity tests pass the metric explicitly regardless.
 
 R additionally accepts any yardstick metric function; Python any scikit-learn
 scorer name or callable.
@@ -292,8 +313,9 @@ set with a single class) for split `s` and anchor `i`, the **default
 behaviour in both languages** is:
 
 - the split row is recorded with `score_full`, `score_reduced` and
-  `importance` equal to `NA` / `NaN` (R additionally stores the error message
-  in its `error` column);
+  `importance` equal to `NA` / `NaN`, and the error message is stored in an
+  `error` column appended after the common columns (R: the condition message;
+  Python: `"<ExceptionType>: <message>"`);
 - one warning is emitted summarising how many (feature, split) pairs failed;
 - aggregation uses the remaining splits; `n_splits` counts the successful
   ones; if no split succeeds, the feature's summary values are `NA` and
@@ -302,7 +324,7 @@ behaviour in both languages** is:
 An option switches to **aborting at the first failure** instead
 (`on_error = "error"` in both languages; the default is `"warn"`).
 Cross-language comparisons use the aborting mode so that a failure cannot be
-mistaken for a value. (Python implements this since commit `692c3fe`, with an
+mistaken for a value. (Python implements this since commit `399bb20`, with the
 `error` column and `n_failed` in its result.)
 
 ## 11. Output schema
@@ -339,7 +361,7 @@ Common columns, in this order:
 Rows are ordered by `split`, then by feature in `features` order. Parity tests
 compare rows by position, not by the `split` label. Implementations may append
 language-specific columns **after** the common ones; R appends `id`, `id2`
-(`rsample` labels) and `error` (message or `NA`).
+(`rsample` labels) and `error`; Python appends `error` (Section 10).
 
 ### 11.3 Metadata
 
@@ -410,7 +432,10 @@ Run against the `sharedimp-py` **working tree** at 12:50 JST (commit
 Python side; the package is installed in editable mode, so the working tree is
 what ran; scikit-learn 1.9.1, numpy 2.4.6). The Python code was only executed
 from here, never modified. R side: this package with yardstick 1.4.0. A first
-run about 20 minutes earlier, during those Python edits, gave the same numbers. R expectations: `tests/testthat/test-common-spec.R` and
+run about 20 minutes earlier, during those Python edits, gave the same numbers.
+Those working-tree changes were later committed on the Python side as
+`399bb20` (default metric, `on_error`) and `dd0bef0` (specification pointer);
+the package state compared here corresponds to that code. R expectations: `tests/testthat/test-common-spec.R` and
 `tests/testthat/test-metric-definitions.R`. Comparison script, its output and
 the learner study: `docs/parity/`.
 
@@ -445,7 +470,11 @@ difference 4.3e-14 (summary table) and 6.8e-14 (per-split table); `n_splits`,
 `n_train`, `n_test` identical. A variant with an added exactly collinear
 column `x1_dup = 3 x1 − 2` (exercising the zero-residual rule in both
 languages) also agreed to 2.9e-14, with `x1_dup` receiving the same importance
-as `x1`.
+as `x1` — **in the current environments**. For the anchors `x2` and `x3` this
+variant is rank-deficient downstream (`r(x1)` and `r(x1_dup)` are collinear),
+and the Python side observed 41.79 instead of 45.55 for `x3` with scikit-learn
+1.3.2 / NumPy 1.23; Section 15.4 explains why and states the rule for such
+tests.
 
 ### 15.2 Metric definitions
 
@@ -482,60 +511,92 @@ learner-failure path. The alternative (dropping the column, the R draft) is
 documented here as rejected; it is not available as an option in either
 package.
 
+### 15.4 Rank deficiency in the downstream OLS learner
+
+Record: `docs/parity/rank_deficiency.md` (scripts and raw output alongside).
+On the collinear variant of Section 15.1, for anchors `x2` and `x3`, the
+residualized `x1` and `x1_dup` differ by round-off only (≤ 7.1e-15) and the
+Full design has a singular value ratio of 2e-17 … 1.6e-16 — at machine
+epsilon (2.2e-16). The residualization is identical in R and Python; the
+question is purely how the least-squares solver treats that singular value:
+
+- recognised as zero (R `lm.fit`, NumPy `lstsq` with its default or with
+  `rcond = 1e-7`, SciPy `lstsq` in scikit-learn 1.9.1, SVD minimum-norm solve):
+  all predictions agree with R to ≤ 1e-13;
+- not recognised (forced in the record with `rcond = 1e-20`, or an untruncated
+  SVD solve in R): coefficients of order 1e14 and per-split test MSE changes
+  of 0.02–0.4, the behaviour the older scikit-learn / NumPy stack showed.
+
+Consequences, now part of Section 8.1: no identity claim for arbitrary
+learners on rank-deficient designs; parity tests on such designs use an OLS
+learner with an explicit rank decision. The full-rank fixture of Section 15.1
+is unaffected.
+
 ## 16. Required changes on the Python side
 
 Listed for the maintainers of `sharedimp-py`; nothing in that repository was
-modified from here. Status: as of Python commit `692c3fe` (2026-11-13), which
-committed the working tree compared in Section 15.
+modified from here. Status: as of Python commit `5277017` (2026-11-13). The
+implementing commits are named per item.
 
 1. **Direction diagnostic.** Remove the `direction` argument of
    `shared_importance()` and the `direction` columns; keep `_direction.py`
    internal and marked experimental, or delete it (Section 13).
-   *Status: done in the working tree.*
+   *Status: done (`febd7ea`).*
 2. **Single predictor.** Accept `p = 1`: the reduced representation has zero
    columns and must be scored with the null model (training mean / training
    class frequencies), not with the user's estimator (Sections 3, 8.3).
-   *Status: done in the working tree (`fit_null_model`).*
+   *Status: done (`febd7ea`, `fit_null_model`).*
 3. **Default scoring.** Default to `neg_mean_squared_error` for regressors and
    `neg_log_loss` for classifiers instead of `estimator.score`. This is now a
    **normative** part of the common specification (Section 9.1).
-   *Status at `692c3fe`: done in code (`_scoring.py`); the Python
-   `docs/specification.md` §10/§11 and README still describe the old
-   `estimator.score` default and should be updated.*
+   *Status: done (`399bb20`; documented in the Python notes §4.2). Earlier
+   revisions of this document attributed it to `692c3fe`, where it was only
+   observed in the editable-install working tree before being committed.*
 4. **Learner failures.** Record a failed `(split, feature)` fit as `NaN` with a
    warning and aggregate over the remaining splits (`n_splits` counts the
    successful ones) **by default**, with an option to raise instead
    (Section 10, now normative). A training split with a single class is such
    a failure.
-   *Status at `692c3fe`: done in code (`on_error = "warn" | "error"`,
-   default `"warn"`); the Python specification text §10/§11 is stale on this
-   point.*
+   *Status: done (`399bb20`; `on_error = "warn" | "error"`, default `"warn"`,
+   `error` column with `"<ExceptionType>: <message>"`, `n_failed`; Python
+   notes §4.3).*
 5. **Specification pointer.** Replace the provisional
    `docs/specification.md` by a pointer to this file plus Python-specific
    notes; drop the provisional label.
-   *Status at `692c3fe`: open; the Python file is a full `0.2-draft` restatement
-   that agrees with this document on every decided item, except that its
-   §10/§11 still report items 3 and 4 as open although the code implements
-   them.*
+   *Status: done (`dd0bef0`): the Python `docs/specification.md` is a pointer
+   to this file plus a conformance table, Python notes and recorded
+   deviations.*
 6. **Metric documentation.** State the scorer ↔ common-name mapping of
-   Section 9.1 (`r2` = `r2`, `roc_auc` multiclass = `roc_auc_ovo` macro, log
-   loss clipping depends on scikit-learn ≥ 1.5) and provide the Pearson²
-   scorer for `rsq` if that metric is wanted.
-   *Status: done in the working tree (`common_scorer()`).*
+   Section 9.1 (`r2` = `r2`, `roc_auc` multiclass = `roc_auc_ovo` macro,
+   `common_scorer("log_loss")` clipping at `2^−52`) and provide the Pearson²
+   scorer for `rsq`.
+   *Status: done (`common_scorer()` for all eight common names, including
+   `rsq` and an argmax-based `accuracy`).*
 7. **Parity test.** Add the fixture of Section 15.1 (including the collinear
    variant) as a test with tolerance `1e-8` on every column of both tables.
-   *Status: done in the working tree. Its second reference set
-   (`r_reference.json`) was generated from R commit `6c5631d`, which predates
-   this revision (anchor first, dropped columns, raw metric values,
-   feature-major rows); it must be regenerated from the current R commit and
-   the compensating conversions in `tests/test_cross_language.py` removed.*
+   *Status: done (`test_cross_language.py`), also with the default metric.
+   Still open (deferred by the Python side until this revision is declared
+   final, which it now is): regenerate the second reference set
+   `tests/fixtures/cross_language/r_reference.json` from the current R commit
+   (its generator must be adapted to `score_*` columns, `collinear` flags and
+   the removed `drop_constant` argument), remove the compensating conversions
+   in `tests/test_cross_language.py`, and extend the comparison to the default
+   metric and to a failing split with `on_error = "warn"` in both languages.
+   For the collinear design use an OLS learner with an explicit rank decision
+   (Section 8.1).*
 
 Already consistent with this specification (no change needed): fold-internal
 OLS residualization with the exact-collinearity rule (`tol = 1e-10`), Full
 with the anchor in place, Reduced without it, scorer orientation and
 `importance = score_full − score_reduced`, no truncation, unweighted mean and
 sample sd over splits, the common column names of Section 11, split-major row
-order of the per-split table, seeding policy, `x0..` default names.
+order of the per-split table, seeding policy, `x0..` default names, Docker
+tag policy (Section 17).
+
+Recorded deviations on the Python side (its notes §4.3–4.4): non-finite
+predictions are not inspected (see Section 8); fit-time `sample_weight` is
+supported in Python only; overlapping training/assessment rows are accepted in
+Python (for in-sample closed-form tests) and rejected in R.
 
 ## 17. Distribution: Docker images
 
@@ -548,6 +609,7 @@ policy:
 | push to `main` | `latest`, short commit SHA (7 characters) | GHCR `ghcr.io/dsc-chiba-u/sharedimp-r` / `ghcr.io/dsc-chiba-u/sharedimp-py`; Docker Hub `koki/sharedimp-r` / `koki/sharedimp-py` |
 | release tag `vX.Y.Z` | `X.Y.Z`, `X.Y`, short commit SHA (**no** `latest`) | same |
 | pull request | none (build and test only) | — |
+| manual run (`workflow_dispatch`) | as for the ref it runs on, **only** when that ref is `main` or a `vX.Y.Z` tag and the `publish` input is true; otherwise build and test only | same |
 
 `latest` therefore always points at the last successful build of `main`, and a
 version tag at the release it names. One `docker/build-push-action` build is

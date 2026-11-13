@@ -5,7 +5,8 @@
 # - pull requests: build + test only, nothing is pushed;
 # - push to main: push with tags `latest` + short SHA; a manual run does the
 #   same unless its `publish` input is false (build + test only, e.g. to
-#   validate the Dockerfile before registry secrets exist);
+#   validate the Dockerfile before registry secrets exist). Manual runs on
+#   any other ref never publish (same rule as the Python workflow);
 # - tags `vX.Y.Z` (future releases): push `X.Y.Z`, `X.Y` + short SHA, no `latest`;
 # - missing Docker Hub secrets fail early with an explicit message;
 # - one build-push-action call tags both registries, so both receive the
@@ -49,15 +50,19 @@ jobs:
         id: publish
         shell: bash
         run: |
+          ref="${{ github.ref }}"
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "push=false" >> "$GITHUB_OUTPUT"
             echo "Pull request: build and test only, no registry push."
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.publish }}" != "true" ]; then
             echo "push=false" >> "$GITHUB_OUTPUT"
             echo "Manual run with publish=false: build and test only, no registry push."
+          elif [ "$ref" != "refs/heads/main" ] && [ "${ref#refs/tags/v}" = "$ref" ]; then
+            echo "push=false" >> "$GITHUB_OUTPUT"
+            echo "Ref $ref is neither main nor a vX.Y.Z tag: build and test only, no registry push."
           else
             echo "push=true" >> "$GITHUB_OUTPUT"
-            echo "Push to ${{ github.ref }}: the image will be published."
+            echo "Push to $ref: the image will be published."
           fi
 
       - name: Check Docker Hub credentials

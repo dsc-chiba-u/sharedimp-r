@@ -1,0 +1,121 @@
+# python: rankdef.py
+numpy 2.4.6 scipy 1.17.1 sklearn 1.9.1
+
+=== anchor x2 ===
+split 1: |r_dup - 3 r_x1| max = 7.1e-15; singular values = [19.876 15.108  2.389  0.858  0.   ]; min/max = 9.3e-17
+   lstsq rcond=None (eps*max(M,N))              mse_test = 0.286153214025  max|pred - ref| = 1.3e-14  max|beta| = 3.53
+   lstsq rcond=-1 (old default, machine eps)    mse_test = 0.286153214025  max|pred - ref| = 1.3e-14  max|beta| = 3.53
+   lstsq rcond=1e-7 (R lm.fit tol)              mse_test = 0.286153214025  max|pred - ref| = 1.3e-14  max|beta| = 3.53
+   sklearn LinearRegression                     mse_test = 0.286153214025  max|pred - ref| = 8.9e-14  max|beta| = 3.53
+   drop x1_dup (rank-revealing)                 mse_test = 0.286153214025  max|pred - ref| = 0.0e+00  max|beta| = 3.53
+split 2: |r_dup - 3 r_x1| max = 5.3e-15; singular values = [18.684 14.695  2.268  1.028  0.   ]; min/max = 8.4e-17
+   lstsq rcond=None (eps*max(M,N))              mse_test = 0.329393750000  max|pred - ref| = 1.2e-14  max|beta| = 2.64
+   lstsq rcond=-1 (old default, machine eps)    mse_test = 0.329393750000  max|pred - ref| = 1.2e-14  max|beta| = 2.64
+   lstsq rcond=1e-7 (R lm.fit tol)              mse_test = 0.329393750000  max|pred - ref| = 1.2e-14  max|beta| = 2.64
+   sklearn LinearRegression                     mse_test = 0.329393750000  max|pred - ref| = 8.9e-15  max|beta| = 2.64
+   drop x1_dup (rank-revealing)                 mse_test = 0.329393750000  max|pred - ref| = 0.0e+00  max|beta| = 2.64
+split 3: |r_dup - 3 r_x1| max = 3.6e-15; singular values = [14.605 13.462  2.41   1.299  0.   ]; min/max = 1.2e-16
+   lstsq rcond=None (eps*max(M,N))              mse_test = 0.213863221329  max|pred - ref| = 7.1e-15  max|beta| = 2.26
+   lstsq rcond=-1 (old default, machine eps)    mse_test = 0.213863221329  max|pred - ref| = 7.1e-15  max|beta| = 2.26
+   lstsq rcond=1e-7 (R lm.fit tol)              mse_test = 0.213863221329  max|pred - ref| = 7.1e-15  max|beta| = 2.26
+   sklearn LinearRegression                     mse_test = 0.213863221329  max|pred - ref| = 9.6e-14  max|beta| = 2.26
+   drop x1_dup (rank-revealing)                 mse_test = 0.213863221329  max|pred - ref| = 0.0e+00  max|beta| = 2.26
+
+=== anchor x3 ===
+split 1: |r_dup - 3 r_x1| max = 1.8e-15; singular values = [22.325  8.587  2.534  1.267  0.   ]; min/max = 5.5e-17
+   lstsq rcond=None (eps*max(M,N))              mse_test = 0.286153214025  max|pred - ref| = 7.1e-15  max|beta| = 1.96
+   lstsq rcond=-1 (old default, machine eps)    mse_test = 0.286153214025  max|pred - ref| = 7.1e-15  max|beta| = 1.96
+   lstsq rcond=1e-7 (R lm.fit tol)              mse_test = 0.286153214025  max|pred - ref| = 7.1e-15  max|beta| = 1.96
+   sklearn LinearRegression                     mse_test = 0.286153214025  max|pred - ref| = 2.5e-14  max|beta| = 1.96
+   drop x1_dup (rank-revealing)                 mse_test = 0.286153214025  max|pred - ref| = 0.0e+00  max|beta| = 2.1
+split 2: |r_dup - 3 r_x1| max = 5.3e-15; singular values = [20.651  8.835  2.828  1.24   0.   ]; min/max = 4.9e-17
+   lstsq rcond=None (eps*max(M,N))              mse_test = 0.329393750000  max|pred - ref| = 5.3e-15  max|beta| = 2.02
+   lstsq rcond=-1 (old default, machine eps)    mse_test = 0.329393750000  max|pred - ref| = 5.3e-15  max|beta| = 2.02
+   lstsq rcond=1e-7 (R lm.fit tol)              mse_test = 0.329393750000  max|pred - ref| = 5.3e-15  max|beta| = 2.02
+   sklearn LinearRegression                     mse_test = 0.329393750000  max|pred - ref| = 1.4e-14  max|beta| = 2.02
+   drop x1_dup (rank-revealing)                 mse_test = 0.329393750000  max|pred - ref| = 0.0e+00  max|beta| = 2.1
+split 3: |r_dup - 3 r_x1| max = 7.1e-15; singular values = [19.849  8.587  2.534  1.425  0.   ]; min/max = 9.9e-17
+   lstsq rcond=None (eps*max(M,N))              mse_test = 0.213863221329  max|pred - ref| = 7.1e-15  max|beta| = 1.72
+   lstsq rcond=-1 (old default, machine eps)    mse_test = 0.213863221329  max|pred - ref| = 7.1e-15  max|beta| = 1.72
+   lstsq rcond=1e-7 (R lm.fit tol)              mse_test = 0.213863221329  max|pred - ref| = 7.1e-15  max|beta| = 1.72
+   sklearn LinearRegression                     mse_test = 0.213863221329  max|pred - ref| = 1.1e-14  max|beta| = 1.72
+   drop x1_dup (rank-revealing)                 mse_test = 0.213863221329  max|pred - ref| = 0.0e+00  max|beta| = 2.11
+
+# python: rankdef_mechanism.py
+machine eps = 2.220e-16
+
+=== anchor x2: effect of the rank decision on the Full-model test MSE ===
+split 1: smallest/largest singular value of the centred design = 7.44e-17 (below eps)
+   detected (rcond = eps)         mse_test = 0.286153   max|beta| = 3.53
+   NOT detected (rcond = 1e-20)   mse_test = 0.547092   max|beta| = 1.89e+14
+   scipy lstsq cond=None          mse_test = 0.286153   max|beta| = 3.53
+split 2: smallest/largest singular value of the centred design = 9.00e-17 (below eps)
+   detected (rcond = eps)         mse_test = 0.329394   max|beta| = 2.64
+   NOT detected (rcond = 1e-20)   mse_test = 0.346694   max|beta| = 4.81e+13
+   scipy lstsq cond=None          mse_test = 0.329394   max|beta| = 2.64
+split 3: smallest/largest singular value of the centred design = 4.36e-17 (below eps)
+   detected (rcond = eps)         mse_test = 0.213863   max|beta| = 2.26
+   NOT detected (rcond = 1e-20)   mse_test = 0.621625   max|beta| = 4.05e+14
+   scipy lstsq cond=None          mse_test = 0.213863   max|beta| = 2.26
+
+=== anchor x3: effect of the rank decision on the Full-model test MSE ===
+split 1: smallest/largest singular value of the centred design = 7.72e-17 (below eps)
+   detected (rcond = eps)         mse_test = 0.286153   max|beta| = 1.96
+   NOT detected (rcond = 1e-20)   mse_test = 0.328473   max|beta| = 3.38e+14
+   scipy lstsq cond=None          mse_test = 0.286153   max|beta| = 1.96
+split 2: smallest/largest singular value of the centred design = 8.58e-17 (below eps)
+   detected (rcond = eps)         mse_test = 0.329394   max|beta| = 2.02
+   NOT detected (rcond = 1e-20)   mse_test = 0.388943   max|beta| = 2.06e+14
+   scipy lstsq cond=None          mse_test = 0.329394   max|beta| = 2.02
+split 3: smallest/largest singular value of the centred design = 1.61e-16 (below eps)
+   detected (rcond = eps)         mse_test = 0.213863   max|beta| = 1.72
+   NOT detected (rcond = 1e-20)   mse_test = 0.262700   max|beta| = 3.58e+13
+   scipy lstsq cond=None          mse_test = 0.213863   max|beta| = 1.72
+
+# R: rankdef.R
+
+=== anchor x2 ===
+split 1: |r_dup - 3 r_x1| max = 7.1e-15; rank(lm.fit) = 4, aliased = x1_dup; sv min/max = 1.3e-16
+   lm.fit (pivoted QR, aliased -> 0)    mse_test = 0.286153214025  max|pred - lm.fit| = 0.0e+00  max|beta| = 3.53
+   lm() formula                         mse_test = 0.286153214025  max|pred - lm.fit| = 0.0e+00  max|beta| = 3.53
+   min-norm SVD, tol 1e-7               mse_test = 0.286153214025  max|pred - lm.fit| = 5.3e-15  max|beta| = 3.53
+   min-norm SVD, tol = machine eps      mse_test = 0.286153214025  max|pred - lm.fit| = 5.3e-15  max|beta| = 3.53
+split 2: |r_dup - 3 r_x1| max = 2.7e-15; rank(lm.fit) = 4, aliased = x1_dup; sv min/max = 2.5e-17
+   lm.fit (pivoted QR, aliased -> 0)    mse_test = 0.329393750000  max|pred - lm.fit| = 0.0e+00  max|beta| = 2.64
+   lm() formula                         mse_test = 0.329393750000  max|pred - lm.fit| = 0.0e+00  max|beta| = 2.64
+   min-norm SVD, tol 1e-7               mse_test = 0.329393750000  max|pred - lm.fit| = 1.4e-14  max|beta| = 2.64
+   min-norm SVD, tol = machine eps      mse_test = 0.329393750000  max|pred - lm.fit| = 1.4e-14  max|beta| = 2.64
+split 3: |r_dup - 3 r_x1| max = 3.6e-15; rank(lm.fit) = 4, aliased = x1_dup; sv min/max = 6.1e-17
+   lm.fit (pivoted QR, aliased -> 0)    mse_test = 0.213863221329  max|pred - lm.fit| = 0.0e+00  max|beta| = 2.26
+   lm() formula                         mse_test = 0.213863221329  max|pred - lm.fit| = 0.0e+00  max|beta| = 2.26
+   min-norm SVD, tol 1e-7               mse_test = 0.213863221329  max|pred - lm.fit| = 3.6e-15  max|beta| = 2.26
+   min-norm SVD, tol = machine eps      mse_test = 0.213863221329  max|pred - lm.fit| = 3.6e-15  max|beta| = 2.26
+
+=== anchor x3 ===
+split 1: |r_dup - 3 r_x1| max = 4.4e-15; rank(lm.fit) = 4, aliased = x1_dup; sv min/max = 2.0e-17
+   lm.fit (pivoted QR, aliased -> 0)    mse_test = 0.286153214025  max|pred - lm.fit| = 0.0e+00  max|beta| = 2.1
+   lm() formula                         mse_test = 0.286153214025  max|pred - lm.fit| = 0.0e+00  max|beta| = 2.1
+   min-norm SVD, tol 1e-7               mse_test = 0.286153214025  max|pred - lm.fit| = 7.1e-15  max|beta| = 1.96
+   min-norm SVD, tol = machine eps      mse_test = 0.286153214025  max|pred - lm.fit| = 7.1e-15  max|beta| = 1.96
+split 2: |r_dup - 3 r_x1| max = 2.7e-15; rank(lm.fit) = 4, aliased = x1_dup; sv min/max = 1.7e-17
+   lm.fit (pivoted QR, aliased -> 0)    mse_test = 0.329393750000  max|pred - lm.fit| = 0.0e+00  max|beta| = 2.1
+   lm() formula                         mse_test = 0.329393750000  max|pred - lm.fit| = 0.0e+00  max|beta| = 2.1
+   min-norm SVD, tol 1e-7               mse_test = 0.329393750000  max|pred - lm.fit| = 3.6e-15  max|beta| = 2.03
+   min-norm SVD, tol = machine eps      mse_test = 0.329393750000  max|pred - lm.fit| = 3.6e-15  max|beta| = 2.03
+split 3: |r_dup - 3 r_x1| max = 4.4e-15; rank(lm.fit) = 4, aliased = x1_dup; sv min/max = 6.2e-17
+   lm.fit (pivoted QR, aliased -> 0)    mse_test = 0.213863221329  max|pred - lm.fit| = 0.0e+00  max|beta| = 2.11
+   lm() formula                         mse_test = 0.213863221329  max|pred - lm.fit| = 0.0e+00  max|beta| = 2.11
+   min-norm SVD, tol 1e-7               mse_test = 0.213863221329  max|pred - lm.fit| = 7.1e-15  max|beta| = 1.72
+   min-norm SVD, tol = machine eps      mse_test = 0.213863221329  max|pred - lm.fit| = 7.1e-15  max|beta| = 1.72
+
+# R: rankdef_mechanism.R
+
+=== anchor x2 ===
+split 1: lm.fit rank 4 (tol 1e-7, aliased x1_dup): mse_test = 0.286153; no-truncation SVD solve: mse_test = 0.233897, max|beta| = 2.24e+14
+split 2: lm.fit rank 4 (tol 1e-7, aliased x1_dup): mse_test = 0.329394; no-truncation SVD solve: mse_test = 0.478291, max|beta| = 2.58e+14
+split 3: lm.fit rank 4 (tol 1e-7, aliased x1_dup): mse_test = 0.213863; no-truncation SVD solve: mse_test = 0.443326, max|beta| = 9.09e+13
+
+=== anchor x3 ===
+split 1: lm.fit rank 4 (tol 1e-7, aliased x1_dup): mse_test = 0.286153; no-truncation SVD solve: mse_test = 0.635469, max|beta| = 6.98e+14
+split 2: lm.fit rank 4 (tol 1e-7, aliased x1_dup): mse_test = 0.329394; no-truncation SVD solve: mse_test = 0.349922, max|beta| = 4.35e+14
+split 3: lm.fit rank 4 (tol 1e-7, aliased x1_dup): mse_test = 0.213863; no-truncation SVD solve: mse_test = 0.146204, max|beta| = 1.37e+14

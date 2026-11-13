@@ -1,6 +1,7 @@
 # sharedimp-r — work log and TODO
 
-Last updated: 2026-11-13 (commit after `eaafaee`). This file records what has
+Last updated: 2026-11-13 (final specification revision after the Python-side
+review; Python state `5277017`). This file records what has
 been done, what was verified and how, and what remains, across the three
 sibling repositories. The algorithm itself is specified in
 `docs/specification.md`; this file is about project state.
@@ -40,6 +41,9 @@ sibling repositories. The algorithm itself is specified in
 - GitHub Actions on `main`: R-CMD-check (macOS / Windows / Ubuntu devel,
   release, oldrel-1), test-coverage, pkgdown, DockerHub/GHCR all green on the
   latest commits.
+- Rank-deficiency study (`docs/parity/rank_deficiency.md`): the older
+  scikit-learn/NumPy discrepancy is a downstream solver rank decision at
+  machine epsilon, not a residualization difference.
 - Cross-language parity (2026-11-13, `docs/parity/`): deterministic fixture
   (OLS + mse, explicit splits, including an exactly collinear column) agrees
   with `sharedimp-py` to ≤ 7e-14 on every column of both tables; all common
@@ -88,20 +92,20 @@ sibling repositories. The algorithm itself is specified in
 
 ## 3. TODO — Python side (`sharedimp-py`, for its maintainers; see `docs/python_changes.md`)
 
-State observed at commit `692c3fe`:
+State observed at commit `5277017`:
 
-- [x] Direction removed from the API; `p = 1` with null model;
-      `common_scorer()`; parity fixture test; Docker workflow with the same
-      tag policy; default metrics `neg_mean_squared_error` / common
-      `log_loss`; `on_error = "warn" | "error"` — all implemented in code.
-- [ ] Update the Python `docs/specification.md` §10/§11 and README: they
-      still describe `estimator.score` as default and "exception propagates".
-- [ ] Replace the Python spec by a pointer to the R spec + Python notes (or
-      keep the restatement but mark the R file as authoritative).
+- [x] Direction removed; `p = 1` with null model (`febd7ea`); default metrics
+      and `on_error` (`399bb20`); spec pointer (`dd0bef0`); `common_scorer()`;
+      parity fixture test (`d612a06`); Docker workflow with the same tag
+      policy (`692c3fe`).
 - [ ] Regenerate `tests/fixtures/cross_language/r_reference.json` from the
-      current R commit (old reference came from `6c5631d`: anchor first,
-      dropped columns, raw metric values, feature-major rows) and remove the
-      compensating conversions in `tests/test_cross_language.py`.
+      current R commit (old reference came from `6c5631d`), adapt the
+      generator (`score_*`, `collinear`, no `drop_constant`), remove the
+      compensating conversions in `tests/test_cross_language.py`, extend to
+      the default metric and a failing split; for the collinear design use an
+      OLS learner with an explicit rank decision (spec §8.1 / §15.4).
+- [ ] Mark the R spec revision of this commit as the one checked in the
+      Python notes §1.
 
 ## 4. TODO — `sharedimp-experiments` (not started; do not touch until asked)
 
@@ -134,7 +138,8 @@ State observed at commit `692c3fe`:
 | 2026-11-13 | Scores oriented greater-is-better; common column names; split-major row order. |
 | 2026-11-13 | Direction diagnostic out of v0.1 (R Pearson-on-difference vs Python Spearman-on-prediction differ). |
 | 2026-11-13 | Default metrics MSE / multinomial log loss; `on_error` default `"warn"`; both normative. |
-| 2026-11-13 | Docker: `rocker/r-ver` base (no Bioconductor); `latest` only from `main`; semver tags from `vX.Y.Z`. |
+| 2026-11-13 | Docker: `rocker/r-ver` base (no Bioconductor); `latest` only from `main`; semver tags from `vX.Y.Z`; manual runs publish only from `main` or a tag. |
+| 2026-11-13 | Rank-deficient OLS designs: no identity claim for arbitrary learners; parity tests use an OLS learner with an explicit rank decision (`docs/parity/rank_deficiency.md`). |
 
 ## 7. Environment notes
 

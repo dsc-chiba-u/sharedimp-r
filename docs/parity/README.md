@@ -7,6 +7,11 @@
   from `evaluate_metric()` for the metric table). It compares the Python
   package's output and scikit-learn's metric functions with the R values.
 * `parity_output.txt` — the output of that run.
+* `rank_deficiency.md`, `rankdef.py`, `rankdef_mechanism.py`, `rankdef.R`,
+  `rankdef_mechanism.R`, `rank_deficiency_output.txt` — the rank-deficiency
+  study (specification Section 15.4): why an OLS learner's rank decision, not
+  the residualization, explains the older scikit-learn/NumPy discrepancy on
+  the collinear variant of the fixture.
 * `zero_column_learner_study.R` — the learner study behind the exact-collinearity
   rule (specification Section 15.3).
 

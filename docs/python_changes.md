@@ -1,47 +1,58 @@
-# Changes required in `sharedimp-py` to match the common specification
+# Status of the Python package against the common specification
 
-Reference state: `sharedimp-py` commit `692c3fe` (2026-11-13; nothing there
-was modified from this repository). The canonical list is Section 16 of
-`docs/specification.md`; this file repeats it with pointers into the Python
-code and the status observed at that commit.
+Reference state: `sharedimp-py` commit `5277017` (2026-11-13; read only,
+nothing there was modified from this repository). The canonical list is
+Section 16 of `docs/specification.md`; this file repeats it with the
+implementing Python commits and what remains.
 
-## Items raised by the R side
+## Items raised by the R side (spec §16)
 
-| # | item | where in `sharedimp-py` | what to do | status at `692c3fe` |
-|---|---|---|---|---|
-| 1 | Direction diagnostic is out of the v0.1 API | `_core.py` (`direction=` argument, `direction` columns), `_direction.py`, `_result.py`, docs | Remove the argument and the columns. Keep `_direction.py` only as internal, clearly marked experimental, or delete it. The R and Python definitions differed (Pearson on `pred_full − pred_reduced` vs Spearman on `pred_full`). | done |
-| 2 | `p = 1` must be accepted | `_core.py::_validate_X` | Allow one column. When the reduced representation has zero columns, score the null model (training mean for regressors; training class frequencies for classifiers) instead of calling the estimator. R implements this in `null_learner()`. | done (`fit_null_model`) |
-| 3 | Default scoring (**normative**, spec §9.1) | `_scoring.py::resolve_scorer` (`scoring=None` → `estimator.score`) | Default to `neg_mean_squared_error` for regressors and `neg_log_loss` for classifiers. The common specification now fixes MSE / multinomial log loss as the defaults in both languages. | done in code (`_scoring.py`: `neg_mean_squared_error` / `common_scorer("log_loss")`); Python spec §10/§11 and README text stale |
-| 4 | Learner failures (**normative**, spec §10) | `_core.py::_evaluate_anchor` | By default catch fit/predict errors (and a training split with a single class) per `(split, feature)`, record `NaN` scores, warn once with the count, aggregate over the remaining splits with `n_splits` = successful splits; offer an option to raise instead (R: `on_error = "error"`). | done in code (`on_error="warn"` default, `"error"` to raise; `error` column, `n_failed`); Python spec §10/§11 text stale |
-| 5 | Specification pointer | `docs/specification.md`, `CLAUDE.md` | Replace the Python-side spec by a pointer to `sharedimp-r/docs/specification.md` plus Python-specific notes. | open: full `0.2-draft` restatement, consistent on all decided items, but its §10/§11 still list items 3 and 4 as open |
-| 6 | Metric documentation | README / docstrings | State the common-name ↔ scorer mapping: `r2` ↔ `r2`, `rsq` ↔ Pearson² (custom scorer), `log_loss` ↔ `neg_log_loss` (machine-epsilon clipping needs scikit-learn ≥ 1.5), `roc_auc` multiclass ↔ `roc_auc_ovo` with `average="macro"` (**not** `roc_auc_ovr`). | done (`common_scorer()`) |
-| 7 | Parity test | `tests/` | Add the fixture of specification Section 15.1 (and its collinear variant) with tolerance `1e-8` on every column of both tables. | done; `tests/fixtures/cross_language/r_reference.json` was generated from R commit `6c5631d` (old layout) and should be regenerated from the current R commit, removing the compensating conversions in `tests/test_cross_language.py` |
-| 8 | Docker policy (spec §17) | `.github/workflows/build_test_push.yml`, `Dockerfile` | `latest` + short SHA on `main`, semver tags on `vX.Y.Z`, no push on PRs, same digest to GHCR and Docker Hub. | done: Python workflow already follows this policy |
+| # | item | Python commit | status |
+|---|---|---|---|
+| 1 | Direction diagnostic out of the v0.1 API | `febd7ea` | done |
+| 2 | `p = 1` accepted; Reduced scored with the null model (`fit_null_model`: `DummyRegressor("mean")` / `DummyClassifier("prior")`) | `febd7ea` | done |
+| 3 | Default metric MSE / multinomial log loss (`scoring=None` → `neg_mean_squared_error` / `common_scorer("log_loss")` reported as `neg_log_loss`) | `399bb20` | done |
+| 4 | Learner failures: `NaN` + one warning by default, `on_error="error"` to raise; `error` column (`"<ExceptionType>: <message>"`), `n_failed` | `399bb20` | done |
+| 5 | Python `docs/specification.md` as a pointer to the R spec plus Python notes and recorded deviations | `dd0bef0` | done |
+| 6 | Scorer ↔ common-name mapping documented; `common_scorer()` for `mse, rmse, mae, r2, rsq, log_loss, accuracy, roc_auc` | `1bb2ce8`, `399bb20` | done |
+| 7 | Parity fixture of spec §15.1 (and collinear variant) at `1e-8`, also with the default metric | `d612a06` | done |
+| 7b | Regenerate `tests/fixtures/cross_language/r_reference.json` from the current R commit (generator adapted to `score_*` columns, `collinear` flags, no `drop_constant`), remove the compensating conversions in `tests/test_cross_language.py`, extend to the default metric and to a failing split with `on_error="warn"`; use an OLS learner with an explicit rank decision for the collinear design (spec §8.1, §15.4) | — | **open** (deferred by the Python side until the R spec revision was final; it is final as of this commit) |
+| 8 | Docker policy (spec §17): `latest` + short SHA on `main`, semver on `vX.Y.Z`, no push on PRs, manual runs publish only from `main` or a tag | `692c3fe` | done |
 
-## Already consistent (no change)
+## Recorded deviations (Python notes §4.3–4.4; no action required)
 
-* Fold-internal OLS residualization with intercept; exact-collinearity rule
-  `SS_res ≤ 1e-10 · SS_tot` with the residual set to exactly 0 and the column
-  kept; constant anchor → slopes 0.
-* Full = anchor in its original position + residualized others; Reduced = Full
-  without the anchor column.
-* Scores oriented greater-is-better; `importance = score_full − score_reduced`;
-  no truncation anywhere.
-* Unweighted mean and sample standard deviation (`ddof = 1`) over splits.
-* Summary columns `feature, importance, importance_std, score_full,
-  score_reduced, n_splits`; per-split columns `feature, split, n_train, n_test,
-  score_full, score_reduced, importance`; per-split rows ordered by split, then
-  feature.
-* Seeding policy and the statement that cross-language equality is limited to
-  deterministic learners on explicit splits.
-* Default names `x0, x1, …` for unnamed arrays (R uses `V1, V2, …`; parity
-  tests use named columns).
+- Non-finite predictions are not inspected in Python (scorers receive the
+  fitted model); they surface as a scorer exception (failure) or a non-finite
+  score (excluded, empty `error`). Summary numbers agree with R.
+- Fit-time `sample_weight` (`fit_params`) exists in Python only; metrics are
+  unweighted in both.
+- Overlapping training/assessment rows are accepted in Python (in-sample
+  closed-form tests) and rejected in R.
+- `split` is 0-based in Python, 1-based in R; unnamed features are `x0, …` in
+  Python and `V1, …` in R.
 
-## Verified numerically (2026-11-13)
+## What the R side changed in response to the Python review (`r_side_changes.md`, third revision)
 
-With the Python working tree at 12:50 JST and the R package at this commit, on
-the deterministic fixture with `LinearRegression` and `neg_mean_squared_error`:
-every column of both tables agrees to ≤ 6.8e-14 (identical numbers in a run
-about 20 minutes earlier). All common metrics agree
-between yardstick 1.4.0 and scikit-learn 1.9.1 to ≤ 3e-15 (details:
-`docs/specification.md` Section 15, `docs/parity/`).
+All ten text corrections were applied to `docs/specification.md` in this
+commit: `p = 1` status (§3); implementing commits `399bb20` / `dd0bef0`
+instead of `692c3fe` (§9.1, §10, §16); Python's `error` column and message
+format (§10, §11.2); specification pointer done (§16 item 5); log-loss
+clipping (`common_scorer("log_loss")` clips at `2^−52`; scikit-learn's
+`log_loss` already did so at 1.3.2) (§9.1); `accuracy` on argmax vs
+`predict` (§9.1); `common_scorer("rsq")` and its `NaN` cases (§9.1); rank
+deficiency in the downstream OLS learner (§8.1, new §15.4,
+`docs/parity/rank_deficiency.md`); manual Docker runs publish only from
+`main` or a release tag, and the R workflow was aligned to that rule (§17).
+No implementation change was requested of R and none was made, apart from the
+workflow condition.
+
+## Verified numerically
+
+- Parity fixture (spec §15.1): R and Python agree to ≤ 6.8e-14 on every
+  column of both tables; collinear variant to 2.9e-14 in the current
+  environments (scikit-learn 1.9.1 / NumPy 2.4.6).
+- All common metrics: yardstick 1.4.0 vs scikit-learn 1.9.1 to ≤ 3e-15.
+- Rank deficiency (spec §15.4, `docs/parity/rank_deficiency.md`): every solver
+  that recognises the machine-epsilon singular value matches R to ≤ 1e-13;
+  a solver that does not changes per-split MSE by 0.02–0.4. Residualization is
+  not involved.
