@@ -174,9 +174,14 @@ reported as they are.</p>
 <h2 id="choosing-the-learner-and-the-metric">Choosing the learner and the metric<a class="anchor" aria-label="anchor" href="#choosing-the-learner-and-the-metric"></a>
 </h2>
 <p>The default learner is a random forest (<code>ranger</code>, 500
-trees, <code>min_n = 5</code>) with fixed hyperparameters. Any
-<code>parsnip</code> model specification can be used instead, as can a
-pair of <code>fit</code>/<code>predict</code> functions wrapped with
+trees, <code>min_n = 5</code>, which is ranger’s
+<code>min.node.size</code>: nodes with more than 5 rows are split) with
+fixed hyperparameters. It is not equivalent to a scikit-learn forest
+with <code>min_samples_leaf = 5</code>; the closest scikit-learn
+definition is <code>min_samples_split = 6, min_samples_leaf = 1</code>
+(specification Section 8.2). Any <code>parsnip</code> model
+specification can be used instead, as can a pair of
+<code>fit</code>/<code>predict</code> functions wrapped with
 <code><a href="../reference/sharedimp_learner.html">sharedimp_learner()</a></code>.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">res_rf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/shared_importance.html">shared_importance</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, v <span class="op">=</span> <span class="fl">5</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>

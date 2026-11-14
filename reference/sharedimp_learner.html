@@ -85,7 +85,8 @@ format described above.</p></dd>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p><code><a href="shared_importance.html">shared_importance()</a></code> accepts three kinds of <code>learner</code>:</p><ul><li><p>a string: <code>"rand_forest"</code> (default; <code>ranger</code> with 500 trees and
-<code>min_n = 5</code>, <code>mtry = floor(sqrt(ncol(x)))</code>) or <code>"linear"</code> (ordinary least
+<code>min_n = 5</code>, which is ranger's <code>min.node.size</code>: nodes with more than 5
+rows are split, and terminal nodes may hold a single row; <code>mtry = floor(sqrt(ncol(x)))</code>, the ranger default) or <code>"linear"</code> (ordinary least
 squares via <code><a href="https://rdrr.io/r/stats/lmfit.html" class="external-link">stats::lm.fit()</a></code>, unpenalized logistic regression via
 <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">stats::glm.fit()</a></code>, or multinomial logistic regression via
 <code><a href="https://rdrr.io/pkg/nnet/man/multinom.html" class="external-link">nnet::multinom()</a></code>, depending on the task; aliased coefficients are set

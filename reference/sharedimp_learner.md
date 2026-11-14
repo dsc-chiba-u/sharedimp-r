@@ -43,8 +43,10 @@ An object of class `sharedimp_learner`.
 accepts three kinds of `learner`:
 
 - a string: `"rand_forest"` (default; `ranger` with 500 trees and
-  `min_n = 5`, `mtry = floor(sqrt(ncol(x)))`) or `"linear"` (ordinary
-  least squares via
+  `min_n = 5`, which is ranger's `min.node.size`: nodes with more than 5
+  rows are split, and terminal nodes may hold a single row;
+  `mtry = floor(sqrt(ncol(x)))`, the ranger default) or `"linear"`
+  (ordinary least squares via
   [`stats::lm.fit()`](https://rdrr.io/r/stats/lmfit.html), unpenalized
   logistic regression via
   [`stats::glm.fit()`](https://rdrr.io/r/stats/glm.html), or multinomial

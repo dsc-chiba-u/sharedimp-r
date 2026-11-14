@@ -103,9 +103,12 @@ Negative fold values for `x4` are expected and are reported as they are.
 ## Choosing the learner and the metric
 
 The default learner is a random forest (`ranger`, 500 trees,
-`min_n = 5`) with fixed hyperparameters. Any `parsnip` model
-specification can be used instead, as can a pair of `fit`/`predict`
-functions wrapped with
+`min_n = 5`, which is ranger’s `min.node.size`: nodes with more than 5
+rows are split) with fixed hyperparameters. It is not equivalent to a
+scikit-learn forest with `min_samples_leaf = 5`; the closest
+scikit-learn definition is `min_samples_split = 6, min_samples_leaf = 1`
+(specification Section 8.2). Any `parsnip` model specification can be
+used instead, as can a pair of `fit`/`predict` functions wrapped with
 [`sharedimp_learner()`](https://dsc-chiba-u.github.io/sharedimp-r/reference/sharedimp_learner.md).
 
 ``` r

@@ -49,7 +49,7 @@
 <li>Fit the learner on both representations, predict the assessment rows, evaluate the metric on each.</li>
 <li>Scores are oriented greater-is-better (<code>score = metric</code> for maximize metrics, <code>−metric</code> for minimize metrics); <code>importance = score_full − score_reduced</code>, so positive always means “keeping the anchor helps”. Negatives are kept.</li>
 <li>Aggregate by the mean over splits; report split-level results too.</li>
-</ol><p>Defaults: 5-fold CV (stratified for classification), random forest via ranger with 500 trees / <code>min_n = 5</code>, MSE for regression and log loss for classification. <code>p = 1</code> is allowed: the reduced model is the null model.</p>
+</ol><p>Defaults: 5-fold CV (stratified for classification), random forest via ranger with 500 trees / <code>min_n = 5</code> (ranger <code>min.node.size</code>; closest scikit-learn definition <code>min_samples_split=6, min_samples_leaf=1</code>, <strong>not</strong> <code>min_samples_leaf=5</code>, and the forests are not equivalent, spec §8.2), MSE for regression and log loss for classification. <code>p = 1</code> is allowed: the reduced model is the null model.</p>
 </div>
 <div class="section level2">
 <h2 id="output-schema-shared-with-python">Output schema (shared with Python)<a class="anchor" aria-label="anchor" href="#output-schema-shared-with-python"></a></h2>
