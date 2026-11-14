@@ -88,9 +88,15 @@ sibling repositories. The algorithm itself is specified in
       skipped, non-fatal). Then add a coverage badge.
 - [ ] Decide whether `vX.Y.Z` tags should also build an R release (GitHub
       Release + tarball); the Docker workflow already handles version tags.
-- [ ] Before any CRAN submission: `Description` wording, `\value` sections,
-      spell check, `cran-comments.md`, run `devtools::check()` on R-devel
-      and `rhub`/win-builder.
+- [x] CRAN submission tarball `../sharedimp_0.1.0.tar.gz` built on
+      2026-11-14 from `26a0252` (`R CMD build`; `R CMD check --as-cran`
+      0 errors / 0 warnings / 1 NOTE "New submission"; all exported Rd files
+      have `\value`; `urlchecker` clean; `cran-comments.md` added, Rbuildignored;
+      CI green on macOS / Windows / Ubuntu devel, release, oldrel-1).
+- [ ] Submit the tarball at https://cran.r-project.org/submit.html and
+      confirm the maintainer e-mail. Not done: win-builder / `rhub` runs,
+      spell check (`spelling` not installed). Tag `v0.1.0` only after CRAN
+      acceptance (the tag publishes semver Docker tags).
 - [ ] Add the SoftwareX DOI to `CITATION.cff`, `DESCRIPTION` (`Description`
       / `URL`) and README **only after** publication.
 - [ ] Keep `docs/specification.md` as the single source of truth; any change
