@@ -14,3 +14,4 @@
 ^\.dockerignore$
 ^docker$
 ^CITATION\.cff$
+^cran-comments\.md$
