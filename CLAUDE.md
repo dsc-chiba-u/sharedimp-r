@@ -47,8 +47,10 @@ For each split and each anchor feature `i`:
 6. Aggregate by the mean over splits; report split-level results too.
 
 Defaults: 5-fold CV (stratified for classification), random forest via ranger
-with 500 trees / `min_n = 5`, MSE for regression and log loss for
-classification. `p = 1` is allowed: the reduced model is the null model.
+with 500 trees / `min_n = 5` (ranger `min.node.size`; closest scikit-learn
+definition `min_samples_split=6, min_samples_leaf=1`, **not**
+`min_samples_leaf=5`, and the forests are not equivalent, spec §8.2), MSE for
+regression and log loss for classification. `p = 1` is allowed: the reduced model is the null model.
 
 ## Output schema (shared with Python)
 

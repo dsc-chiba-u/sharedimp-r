@@ -30,7 +30,8 @@ always derived by \code{\link[=shared_importance]{shared_importance()}} as the a
 \code{shared_importance()} accepts three kinds of \code{learner}:
 \itemize{
 \item a string: \code{"rand_forest"} (default; \code{ranger} with 500 trees and
-\code{min_n = 5}, \code{mtry = floor(sqrt(ncol(x)))}) or \code{"linear"} (ordinary least
+\code{min_n = 5}, which is ranger's \code{min.node.size}: nodes with more than 5
+rows are split, and terminal nodes may hold a single row; \code{mtry = floor(sqrt(ncol(x)))}, the ranger default) or \code{"linear"} (ordinary least
 squares via \code{stats::lm.fit()}, unpenalized logistic regression via
 \code{stats::glm.fit()}, or multinomial logistic regression via
 \code{nnet::multinom()}, depending on the task; aliased coefficients are set

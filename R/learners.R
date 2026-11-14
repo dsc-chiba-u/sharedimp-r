@@ -11,7 +11,9 @@
 #' `shared_importance()` accepts three kinds of `learner`:
 #'
 #' * a string: `"rand_forest"` (default; `ranger` with 500 trees and
-#'   `min_n = 5`, `mtry = floor(sqrt(ncol(x)))`) or `"linear"` (ordinary least
+#'   `min_n = 5`, which is ranger's `min.node.size`: nodes with more than 5
+#'   rows are split, and terminal nodes may hold a single row; `mtry =
+#'   floor(sqrt(ncol(x)))`, the ranger default) or `"linear"` (ordinary least
 #'   squares via `stats::lm.fit()`, unpenalized logistic regression via
 #'   `stats::glm.fit()`, or multinomial logistic regression via
 #'   `nnet::multinom()`, depending on the task; aliased coefficients are set

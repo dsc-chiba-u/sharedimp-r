@@ -1,7 +1,7 @@
 # sharedimp-r — work log and TODO
 
-Last updated: 2026-11-13 (final specification revision after the Python-side
-review; Python state `c082026`). This file records what has
+Last updated: 2026-11-14 (spec §8.2 random-forest wording corrected after the
+experiments-side study; Python state `c082026`). This file records what has
 been done, what was verified and how, and what remains, across the three
 sibling repositories. The algorithm itself is specified in
 `docs/specification.md`; this file is about project state.
@@ -63,6 +63,12 @@ sibling repositories. The algorithm itself is specified in
 
 - `docs/specification.md` v0.1 (common spec, reconciled with the Python side;
   Sections 15–17: verification record, Python change list, Docker policy).
+  §8.2 reworded 2026-11-14: `min_n = 5` is ranger `min.node.size = 5`
+  (closest scikit-learn definition `min_samples_split=6, min_samples_leaf=1`),
+  forests across languages are not equivalent; evidence in
+  `sharedimp-experiments/docs/random_forest_comparison.md` (two synthetic
+  data sets, n = 300, p = 5). Documentation only; roxygen of
+  `sharedimp_learner()`, the vignette and `CLAUDE.md` say the same.
 - `docs/python_changes.md`, `docs/parity/`, `docs/umfi_comparison.md`.
 - `CLAUDE.md`, `README.md` (badges, Docker usage), vignette, `NEWS.md`,
   `CITATION.cff` (author from DESCRIPTION; UMFI paper as preferred citation;
@@ -109,7 +115,13 @@ State observed at commit `c082026`:
 - [ ] Optional: an R test reading the same `inputs.json` to close the loop in
       the other direction (none exists yet).
 
-## 4. TODO — `sharedimp-experiments` (not started; do not touch until asked)
+## 4. TODO — `sharedimp-experiments` (do not touch until asked)
+
+State observed on 2026-11-14 (`849187b`): Phases 2 and 3 exist
+(`docs/random_forest_comparison.md`, `docs/package_change_proposal.md`,
+`docs/runtime_benchmark.md`, ...). The §8.2 proposal was applied on the R side;
+the proposal says `python/sharedimp_exp/learners.py` should then follow in a
+separate commit there (not done from here).
 
 - [ ] Benchmarks for the SoftwareX paper: comparison with the official UMFI
       implementations (R and Python) on the paper's synthetic designs;
@@ -141,6 +153,7 @@ State observed at commit `c082026`:
 | 2026-11-13 | Direction diagnostic out of v0.1 (R Pearson-on-difference vs Python Spearman-on-prediction differ). |
 | 2026-11-13 | Default metrics MSE / multinomial log loss; `on_error` default `"warn"`; both normative. |
 | 2026-11-13 | Docker: `rocker/r-ver` base (no Bioconductor); `latest` only from `main`; semver tags from `vX.Y.Z`; manual runs publish only from `main` or a tag. |
+| 2026-11-14 | Spec §8.2: R `min_n = 5` = ranger `min.node.size = 5` (split nodes with > 5 rows, leaves may hold 1 row); closest scikit-learn definition `min_samples_split=6, min_samples_leaf=1`, not `min_samples_leaf=5`; R/Python forests declared non-equivalent (in-bag draws vs distinct rows, tie-breaking). Documentation only; R default learner unchanged (experiments proposal, option 1). |
 | 2026-11-13 | Rank-deficient OLS designs: no identity claim for arbitrary learners; coefficients are not unique and predictions off the training dependency depend on the solver; parity tests reproduce `lm.fit`'s column-order aliasing (Python test-only `AliasingOLS`), not merely a rank decision (`docs/parity/rank_deficiency.md`). |
 
 ## 7. Environment notes

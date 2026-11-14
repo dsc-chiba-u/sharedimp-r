@@ -2,7 +2,9 @@
 
 Status: **v0.1, reconciled 2026-11-13; final revision after the Python-side
 review (`sharedimp-py/docs/r_side_changes.md`, third and fourth revisions).**
-This
+Section 8.2 (random-forest settings) was reworded on 2026-11-14 following
+`sharedimp-experiments/docs/package_change_proposal.md`; documentation only,
+no behaviour of either package changed. This
 document is the single source of truth for the R package `sharedimp` (this
 repository) and the Python package `sharedimp` (`../sharedimp-py`, whose
 `docs/specification.md` is a pointer to this file plus Python-specific notes
@@ -216,22 +218,50 @@ if it produces non-finite predictions.
 
 ### 8.2 Built-in learner `"rand_forest"` (R default)
 
-Random forest with fixed hyperparameters shared across languages:
+Random forest with fixed hyperparameters. The built-in learner exists in R
+only; the last column gives the scikit-learn settings whose *definitions* are
+closest to it. The two forests are **not equivalent** (see below).
 
-| parameter | value |
-|---|---|
-| trees | 500 |
-| mtry / max_features | `floor(sqrt(q))`, `q` = number of representation columns |
-| min_n / min_samples_leaf | 5 |
-| classification output | class probabilities |
-| bootstrap | yes, sample fraction 1 |
+| parameter | R built-in (`ranger` through `parsnip::rand_forest()`) | closest scikit-learn setting |
+|---|---|---|
+| trees | `trees = 500` | `n_estimators=500` |
+| split candidates | ranger default `mtry = floor(sqrt(q))`, `q` = number of representation columns (the built-in learner does not set `mtry`) | `max_features="sqrt"` (must be set for the regressor, whose default is all columns) |
+| node size | `min_n = 5`, i.e. ranger `min.node.size = 5`: a node with more than 5 rows is split; terminal nodes may hold a single row (`min.bucket = 1`) | `min_samples_split=6`, `min_samples_leaf=1` |
+| classification output | class probabilities (probability forest, `probability = TRUE`) | `predict_proba` |
+| sampling | bootstrap, sample fraction 1 | `bootstrap=True` |
+| threads | 1 (`num.threads = 1`, set by parsnip) | `n_jobs=1` |
 
-R engine: `ranger` through `parsnip::rand_forest()`. Python: scikit-learn
-`RandomForestRegressor` / `RandomForestClassifier`. Forest implementations
-differ between languages; cross-language equality is **not** expected for this
-learner, only qualitative agreement. Note that an exactly-zero column occupies
-one of the `mtry` candidate slots at every split; both languages are affected
-identically (Section 15.3).
+Not equivalent, even with these settings:
+
+- `min.node.size = k` in ranger corresponds to `min_samples_split = k + 1`
+  in scikit-learn (ranger makes a node terminal when its size is `<= k`),
+  not to `min_samples_split = k` and not to `min_samples_leaf = k`.
+  `min_samples_leaf = k` corresponds to ranger's `min.bucket = k`, which the
+  built-in learner leaves at 1. Earlier revisions of this section paired
+  `min_n = 5` with `min_samples_leaf = 5`; those are different stopping
+  rules.
+- Under bootstrap sampling ranger counts node sizes in in-bag draws,
+  scikit-learn in distinct training rows, so the same number is a stricter
+  limit in scikit-learn and its trees are smaller.
+- Ties between equally good splits are resolved differently; single
+  classification trees differed in every pairing examined, including
+  stopping rules of the same definition.
+
+Cross-language equality is therefore **not** expected for this learner and
+is never tested; "closest setting" refers to the definition of the
+parameters, not to the fitted trees. Evidence: `sharedimp-experiments`,
+`docs/random_forest_comparison.md` (workflow `02b_rf_settings`; ranger
+0.18.0 through parsnip 1.5.0, scikit-learn 1.9.1, one thread). That study
+covered two synthetic data sets (regression and binary, `n = 300`, `p = 5`);
+on them the forest with `min_samples_leaf = 5` grew trees about one third the
+size of the R built-in forest, and aligning the split rule
+(`min_samples_split = 6`) brought the cross-language difference in importance
+down to the size of the seed-to-seed variation, with the same feature ranking
+in every setting. The sizes of these differences are specific to those data
+sets and are not claimed in general.
+
+Note that an exactly-zero column occupies one of the `mtry` candidate slots at
+every split; both languages are affected identically (Section 15.3).
 
 ### 8.3 Null model
 

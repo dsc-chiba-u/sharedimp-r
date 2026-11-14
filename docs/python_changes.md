@@ -20,6 +20,20 @@ implementing Python commits and what remains.
 | 9 | Non-finite predictions recorded as a learner failure, as in R | `98de522` | done (former deviation removed) |
 | 8 | Docker policy (spec §17): `latest` + short SHA on `main`, semver on `vX.Y.Z`, no push on PRs, manual runs publish only from `main` or a tag | `692c3fe` | done |
 
+## Section 8.2 rewording (2026-11-14): no Python change required
+
+The random-forest table of spec §8.2 no longer pairs R's `min_n = 5` (ranger
+`min.node.size = 5`) with scikit-learn's `min_samples_leaf = 5`; the closest
+scikit-learn *definition* is `min_samples_split=6, min_samples_leaf=1`,
+`max_features="sqrt"`, `n_estimators=500`, and the section states that the two
+forests are not equivalent (node sizes counted in in-bag draws vs distinct
+rows; tie-breaking). Source: `sharedimp-experiments`
+`docs/package_change_proposal.md` and `docs/random_forest_comparison.md`. The
+Python package has no built-in forest and its `docs/specification.md` only
+refers to §8.2 for stochastic learners, so nothing in `sharedimp-py` needs to
+change. If Python documentation ever shows a forest "like the R default", it
+should use the settings above.
+
 ## Recorded deviations (Python notes §4.4; no action required)
 
 - Fit-time `sample_weight` (`fit_params`) exists in Python only; metrics are
