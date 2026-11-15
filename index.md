@@ -5,7 +5,7 @@
 AISTATS 2023) designed for modern, resampling-based machine-learning
 workflows. It is a companion to the Python package of the same name
 (`sharedimp-py`); both follow the specification in
-[`docs/specification.md`](https://dsc-chiba-u.github.io/sharedimp-r/docs/specification.md).
+[`docs/specification.md`](https://github.com/dsc-chiba-u/sharedimp-r/blob/main/docs/specification.md).
 
 We do not claim a new importance measure. The package makes an existing
 one safe and convenient:
@@ -119,7 +119,7 @@ For each anchor feature `i` and each split:
 4.  Average over splits; keep the split-level table.
 
 The R and Python packages share one specification
-([`docs/specification.md`](https://dsc-chiba-u.github.io/sharedimp-r/docs/specification.md))
+([`docs/specification.md`](https://github.com/dsc-chiba-u/sharedimp-r/blob/main/docs/specification.md))
 and produce identical tables on deterministic learners with explicit
 splits.
 
@@ -142,8 +142,8 @@ between-split dispersion.
 | learner / metric | fixed (ranger 100 trees; R², accuracy) | configurable, fixed hyperparameters |
 
 Details and a recorded numerical comparison:
-[`docs/specification.md`](https://dsc-chiba-u.github.io/sharedimp-r/docs/specification.md),
-[`docs/umfi_comparison.md`](https://dsc-chiba-u.github.io/sharedimp-r/docs/umfi_comparison.md).
+[`docs/specification.md`](https://github.com/dsc-chiba-u/sharedimp-r/blob/main/docs/specification.md),
+[`docs/umfi_comparison.md`](https://github.com/dsc-chiba-u/sharedimp-r/blob/main/docs/umfi_comparison.md).
 
 ## Reference
 
@@ -156,4 +156,4 @@ Statistics (AISTATS)*, PMLR 206:10782–10814.
 ## License
 
 MIT © 2026 Data Science Core. See
-[LICENSE.md](https://dsc-chiba-u.github.io/sharedimp-r/LICENSE.md).
+[LICENSE.md](https://github.com/dsc-chiba-u/sharedimp-r/blob/main/LICENSE.md).
