@@ -5,7 +5,7 @@
 [![DockerHub/GHCR](https://github.com/dsc-chiba-u/sharedimp-r/actions/workflows/build_test_push.yml/badge.svg)](https://github.com/dsc-chiba-u/sharedimp-r/actions/workflows/build_test_push.yml)
 [![GHCR](https://img.shields.io/badge/ghcr.io-dsc--chiba--u%2Fsharedimp--r-blue?logo=docker)](https://github.com/dsc-chiba-u/sharedimp-r/pkgs/container/sharedimp-r)
 [![Docker Hub](https://img.shields.io/docker/v/koki/sharedimp-r?label=docker%20hub&logo=docker)](https://hub.docker.com/r/koki/sharedimp-r)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/dsc-chiba-u/sharedimp-r/blob/main/LICENSE.md)
 <!-- badges: end -->
 
 `sharedimp` is an R implementation of the linear-regression variant of
@@ -13,7 +13,7 @@
 AISTATS 2023) designed for modern, resampling-based machine-learning
 workflows. It is a companion to the Python package of the same name
 (`sharedimp-py`); both follow the specification in
-[`docs/specification.md`](docs/specification.md).
+[`docs/specification.md`](https://github.com/dsc-chiba-u/sharedimp-r/blob/main/docs/specification.md).
 
 We do not claim a new importance measure. The package makes an existing one
 safe and convenient:
@@ -119,7 +119,7 @@ For each anchor feature `i` and each split:
 4. Average over splits; keep the split-level table.
 
 The R and Python packages share one specification
-([`docs/specification.md`](docs/specification.md)) and produce identical
+([`docs/specification.md`](https://github.com/dsc-chiba-u/sharedimp-r/blob/main/docs/specification.md)) and produce identical
 tables on deterministic learners with explicit splits.
 
 ## What the numbers are not
@@ -139,8 +139,8 @@ p-values; `importance_std` is a descriptive between-split dispersion.
 | negative values | set to 0 | kept |
 | learner / metric | fixed (ranger 100 trees; R², accuracy) | configurable, fixed hyperparameters |
 
-Details and a recorded numerical comparison: [`docs/specification.md`](docs/specification.md),
-[`docs/umfi_comparison.md`](docs/umfi_comparison.md).
+Details and a recorded numerical comparison: [`docs/specification.md`](https://github.com/dsc-chiba-u/sharedimp-r/blob/main/docs/specification.md),
+[`docs/umfi_comparison.md`](https://github.com/dsc-chiba-u/sharedimp-r/blob/main/docs/umfi_comparison.md).
 
 ## Reference
 
@@ -152,4 +152,4 @@ Importance: Learning from Data with Causal Guarantees. *Proceedings of the
 
 ## License
 
-MIT © 2026 Data Science Core. See [LICENSE.md](LICENSE.md).
+MIT © 2026 Data Science Core. See [LICENSE.md](https://github.com/dsc-chiba-u/sharedimp-r/blob/main/LICENSE.md).

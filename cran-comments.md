@@ -1,6 +1,17 @@
-## Submission of sharedimp 0.1.0
+## Resubmission of sharedimp 0.1.0
 
-This is a new submission.
+This is a resubmission. In the previous submission CRAN reported:
+
+    Found the following (possibly) invalid file URIs:
+      URI: LICENSE.md               From: README.md
+      URI: docs/specification.md    From: README.md
+      URI: docs/umfi_comparison.md  From: README.md
+
+Fixed: those links in README.md now point to the files on GitHub
+(absolute https URLs); the targets are not part of the source package.
+`urlchecker::url_check()` passes. Nothing else changed.
+
+This is a new submission (first release of the package).
 
 ## R CMD check results
 
